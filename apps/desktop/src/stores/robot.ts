@@ -10,6 +10,18 @@ import type {
   TorqueResult,
 } from '../rpc/types'
 
+const ROBOT_DISPLAY_NAMES: Record<string, string> = {
+  uf850: 'UF850',
+  xarm5_1305: 'xArm 5',
+  xarm6_1305: 'xArm 6',
+  xarm7_1305: 'xArm 7',
+  lite6: 'Lite 6',
+}
+
+export function robotDisplayName(key: string, fallback?: string): string {
+  return ROBOT_DISPLAY_NAMES[key] ?? (fallback || key)
+}
+
 export const useRobotStore = defineStore('robot', () => {
   const engine = useEngineStore()
   const robots = ref<RobotListItem[]>([])

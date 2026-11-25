@@ -11,7 +11,8 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AppFooter: typeof import('./components/AppFooter.vue')['default']
+    AppHeader: typeof import('./components/AppHeader.vue')['default']
+    CartesianPad: typeof import('./components/CartesianPad.vue')['default']
     ElButton: typeof import('element-plus/es')['ElButton']
     ElConfigProvider: typeof import('element-plus/es')['ElConfigProvider']
     ElDialog: typeof import('element-plus/es')['ElDialog']
@@ -22,16 +23,16 @@ declare module 'vue' {
     ElRadioButton: typeof import('element-plus/es')['ElRadioButton']
     ElRadioGroup: typeof import('element-plus/es')['ElRadioGroup']
     ElSelect: typeof import('element-plus/es')['ElSelect']
-    ElSlider: typeof import('element-plus/es')['ElSlider']
     ElSwitch: typeof import('element-plus/es')['ElSwitch']
     ElTabPane: typeof import('element-plus/es')['ElTabPane']
     ElTabs: typeof import('element-plus/es')['ElTabs']
-    InfoPanel: typeof import('./components/InfoPanel.vue')['default']
-    LangSwitch: typeof import('./components/LangSwitch.vue')['default']
-    MotionBar: typeof import('./components/MotionBar.vue')['default']
+    JointControlList: typeof import('./components/JointControlList.vue')['default']
+    MotionPanel: typeof import('./components/MotionPanel.vue')['default']
     PayloadPanel: typeof import('./components/PayloadPanel.vue')['default']
     RobotPanel: typeof import('./components/RobotPanel.vue')['default']
     SettingsDialog: typeof import('./components/SettingsDialog.vue')['default']
+    StageNotices: typeof import('./components/StageNotices.vue')['default']
+    StageTelemetry: typeof import('./components/StageTelemetry.vue')['default']
     TcpPanel: typeof import('./components/TcpPanel.vue')['default']
     Viewport: typeof import('./components/Viewport.vue')['default']
   }

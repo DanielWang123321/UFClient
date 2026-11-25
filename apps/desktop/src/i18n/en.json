@@ -10,6 +10,7 @@
   },
   "robot": {
     "title": "Robot",
+    "toolTitle": "End effector",
     "model": "Model",
     "endEffector": "End effector",
     "mounting": "Mounting",
@@ -22,7 +23,8 @@
     "hint": "Relative to the flange, mm / °",
     "apply": "Apply",
     "flange": "Flange",
-    "toolDefault": "tool default"
+    "toolDefault": "tool default",
+    "summaryNone": "Flange (0)"
   },
   "payload": {
     "title": "TCP Payload",
@@ -33,11 +35,12 @@
   },
   "view": {
     "reset": "Reset view",
-    "base": "Base",
-    "tcp": "TCP",
+    "base": "Base frame",
+    "tcp": "TCP frame",
     "com": "COM",
     "loading": "Loading model…",
     "loadFailed": "Failed to load model",
+    "retry": "Retry",
     "axes": "Axes: X red, Y green, Z blue"
   },
   "engine": {
@@ -59,15 +62,29 @@
     "lite6_vacuum_gripper": "Lite6 Vacuum Gripper"
   },
   "motion": {
+    "panelTitle": "Motion controls",
+    "cartesian": "Cartesian control",
+    "joint": "Joint control",
+    "position": "Position",
+    "orientation": "Orientation",
     "speed": "Speed",
-    "home": "Home",
-    "align": "Align",
+    "home": "Initial position",
+    "align": "Level flange",
     "collapse": "Collapse / expand",
+    "expandCartesian": "Expand Cartesian controls",
+    "collapseCartesian": "Collapse Cartesian controls",
+    "expandJoint": "Expand joint controls",
+    "collapseJoint": "Collapse joint controls",
+    "jointDecrease": "Joint {j} decrease",
+    "jointIncrease": "Joint {j} increase",
+    "jointAngle": "Joint {j} angle",
+    "jointPosition": "Joint {j} position",
+    "dismissNotice": "Dismiss notice",
     "errTitle": "Motion stopped",
     "errLimit": "Joint limit reached.",
     "errJointLimit": "J{j} reached its joint limit.",
     "errUnreachable": "Target unreachable (workspace boundary, singularity or joint limit).",
-    "errAlign": "Cannot point the tool straight down by moving only the last three joints from this pose.",
+    "errAlign": "Could not level the flange within joint limits; the current pose is preserved.",
     "errBoundary": "{axis} reached the safety boundary ({side} {limit}).",
     "min": "min",
     "max": "max"
@@ -75,8 +92,8 @@
   "info": {
     "state": "State",
     "payload": "Payload",
-    "tcp": "TCP Position",
-    "joints": "Joint Angle",
+    "tcp": "TCP pose",
+    "joints": "Joint angles",
     "moving": "Moving",
     "ready": "Ready",
     "stopped": "Stopped",
@@ -92,7 +109,7 @@
     "about": "About",
     "stepMm": "Click step, linear",
     "stepDeg": "Click step, angular (joints, RPY)",
-    "jogHint": "Press and hold longer than {ms} ms for continuous motion. 100 % speed = {lin} mm/s linear, {ang} °/s angular (fixed for now).",
+    "jogHint": "Press and hold longer than {ms} ms for continuous motion. 1%–100% speed maps linearly to {linMin}–{linMax} mm/s linear, {angMin}–{tcpAngMax} °/s orientation, and {angMin}–{jointAngMax} °/s joints.",
     "safetyHint": "Boundary for {model} (stored per robot model). Jog, Home and Align stop at it. TCP limits are in the base frame; leave empty for unbounded. Joint limits are clamped inside the model limits.",
     "unbounded": "unbounded",
     "resetBoundary": "Reset to model limits",

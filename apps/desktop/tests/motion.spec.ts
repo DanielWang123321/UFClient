@@ -1,31 +1,76 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
-const { alert } = vi.hoisted(() => ({ alert: vi.fn(async () => 'confirm') }))
-vi.mock('element-plus', () => ({ ElMessageBox: { alert } }))
-
 import { useEngineStore } from '../src/stores/engine'
 import { useRobotStore } from '../src/stores/robot'
 import { useMotionStore } from '../src/stores/motion'
 import { RpcClient } from '../src/rpc/client'
 import { FakeWs, HELLO } from './fakeEngine'
-import { MOTION, PressHold, STATE, approach, padSegment, rate, stepJoint, stepSize } from '../src/lib/motion'
+import {
+  MOTION,
+  PressHold,
+  STATE,
+  approach,
+  disabledTcpAxes,
+  jointProgress,
+  jointVelocity,
+  rate,
+  sanitizeSpeedPct,
+  stepJoint,
+  stepSize,
+} from '../src/lib/motion'
 
 describe('motion helpers', () => {
-  it('uses 1 mm / 1 deg steps and the 230 mm/s, 40 deg/s speed scale', () => {
+  it('aligns long-press threshold and 1%-100% speed mapping with ufactory_robot_viewer', () => {
+    expect(MOTION.longPressMs).toBe(220)
     expect(stepSize({ kind: 'tcp', axis: 'x' })).toBe(1)
     expect(stepSize({ kind: 'tcp', axis: 'yaw' })).toBe(1)
     expect(stepSize({ kind: 'joint', index: 2 })).toBe(1)
-    expect(rate({ kind: 'tcp', axis: 'z' }, 100)).toBe(230)
-    expect(rate({ kind: 'tcp', axis: 'z' }, 50)).toBe(115)
-    expect(rate({ kind: 'tcp', axis: 'roll' }, 50)).toBe(20)
-    expect(rate({ kind: 'joint', index: 0 }, 100)).toBe(40)
-    expect(MOTION.longPressMs).toBe(300)
+
+    expect(rate({ kind: 'tcp', axis: 'z' }, 1)).toBeCloseTo(2.5)
+    expect(rate({ kind: 'tcp', axis: 'z' }, 50)).toBeCloseTo(125)
+    expect(rate({ kind: 'tcp', axis: 'z' }, 100)).toBeCloseTo(250)
+
+    expect(rate({ kind: 'tcp', axis: 'roll' }, 1)).toBeCloseTo(1)
+    expect(rate({ kind: 'tcp', axis: 'roll' }, 100)).toBeCloseTo(40)
+
+    expect(rate({ kind: 'joint', index: 0 }, 1)).toBeCloseTo(1)
+    expect(rate({ kind: 'joint', index: 0 }, 100)).toBeCloseTo(45)
+    expect(jointVelocity(1)).toBeCloseTo(1)
+    expect(jointVelocity(100)).toBeCloseTo(45)
   })
+
+  it('disables Roll jogging for 5-DoF arms only', () => {
+    expect(disabledTcpAxes(5)).toEqual(['roll'])
+    expect(disabledTcpAxes(6)).toEqual([])
+    expect(disabledTcpAxes(7)).toEqual([])
+  })
+
+  it('computes bidirectional zero-centered progress geometry', () => {
+    expect(jointProgress(0, -360, 360)).toEqual({ zeroPct: 50, currentPct: 50, fillLeft: 50, fillWidth: 0 })
+    const pos = jointProgress(180, -360, 360)
+    expect(pos).toEqual({ zeroPct: 50, currentPct: 75, fillLeft: 50, fillWidth: 25 })
+    const neg = jointProgress(-180, -360, 360)
+    expect(neg).toEqual({ zeroPct: 50, currentPct: 25, fillLeft: 25, fillWidth: 25 })
+    const asym = jointProgress(0, -10, 90)
+    expect(asym.zeroPct).toBeCloseTo(10)
+    expect(asym.currentPct).toBeCloseTo(10)
+  })
+
+  it('validates persisted speed percentage values', () => {
+    expect(sanitizeSpeedPct(1)).toBe(1)
+    expect(sanitizeSpeedPct(50)).toBe(50)
+    expect(sanitizeSpeedPct(100)).toBe(100)
+    for (const bad of ['', '0', '101', '12.5', 'invalid', 0, 101, 12.5, null, undefined]) {
+      expect(sanitizeSpeedPct(bad)).toBe(50)
+    }
+  })
+
   it('clamps joints at their limits and reports it', () => {
     expect(stepJoint([0, 149.5], 1, 1, [[-360, 360], [-150, 150]])).toEqual({ q: [0, 150], hitLimit: true })
     expect(stepJoint([0, 10], 1, -1, [[-360, 360], [-150, 150]])).toEqual({ q: [0, 9], hitLimit: false })
   })
+
   it('interpolates all joints together', () => {
     const r = approach([0, 0], [10, -5], 2)
     expect(r.done).toBe(false)
@@ -33,27 +78,25 @@ describe('motion helpers', () => {
     expect(r.q[1]).toBeCloseTo(-1)
     expect(approach([9, -4.5], [10, -5], 2)).toEqual({ q: [10, -5], done: true })
   })
-  it('maps pad hits to segments (0 top, 1 right, 2 bottom, 3 left)', () => {
-    expect(padSegment(0, -70, 47, 90)).toBe(0)
-    expect(padSegment(70, 0, 47, 90)).toBe(1)
-    expect(padSegment(0, 70, 47, 90)).toBe(2)
-    expect(padSegment(-70, 0, 47, 90)).toBe(3)
-    expect(padSegment(10, 10, 47, 90)).toBe(-1)
-  })
-  it('tells click from press-and-hold', () => {
+
+  it('tells click from press-and-hold using the 220 ms threshold', () => {
     vi.useFakeTimers()
     const cb = { onClick: vi.fn(), onHoldStart: vi.fn(), onHoldEnd: vi.fn() }
-    const h = new PressHold(cb, 300)
+    const h = new PressHold(cb, MOTION.longPressMs)
     h.press()
     vi.advanceTimersByTime(100)
     h.release()
     expect(cb.onClick).toHaveBeenCalledTimes(1)
     h.press()
-    vi.advanceTimersByTime(301)
+    vi.advanceTimersByTime(221)
     expect(cb.onHoldStart).toHaveBeenCalledTimes(1)
     h.release()
     expect(cb.onHoldEnd).toHaveBeenCalledTimes(1)
     expect(cb.onClick).toHaveBeenCalledTimes(1)
+    h.press()
+    h.abort()
+    vi.advanceTimersByTime(300)
+    expect(cb.onHoldStart).toHaveBeenCalledTimes(1)
     vi.useRealTimers()
   })
 })
@@ -70,7 +113,7 @@ describe('motion store (simulation)', () => {
   let ws: FakeWs
   let unreachable = false
   beforeEach(async () => {
-    alert.mockClear()
+    localStorage.clear()
     unreachable = false
     setActivePinia(createPinia())
     const handlers = {
@@ -103,6 +146,7 @@ describe('motion store (simulation)', () => {
     await m.step({ kind: 'joint', index: 1 }, 1)
     expect(robot.q[1]).toBe(1)
     expect(m.state).toBe(STATE.stopped)
+    expect(m.notice).toBeNull()
   })
 
   it('a TCP click calls the sidecar jog in the base frame with 1 mm', async () => {
@@ -112,20 +156,26 @@ describe('motion store (simulation)', () => {
     expect(call?.params).toMatchObject({ axis: 'x', delta: -1 })
   })
 
-  it('hitting a joint limit stops and pops up a message', async () => {
+  it('hitting a joint limit stops, sets a non-blocking notice, and clears on a valid reverse step', async () => {
     const m = useMotionStore()
     const robot = useRobotStore()
     await robot.setQ([0, 0, -3, 0, 0, 0])
     await m.step({ kind: 'joint', index: 2 }, -1)
     expect(robot.q[2]).toBe(-3.5)
     expect(m.state).toBe(STATE.stopped)
-    expect(alert).toHaveBeenCalledTimes(1)
+    expect(m.notice).toMatchObject({ kind: 'boundary', axis: 'J3', side: 'min' })
+
+    await m.step({ kind: 'joint', index: 2 }, 1)
+    expect(robot.q[2]).toBe(-2.5)
+    expect(m.notice).toBeNull()
   })
 
-  it('an unreachable TCP move pops up a message', async () => {
+  it('an unreachable TCP move sets an unreachable notice', async () => {
     unreachable = true
-    await useMotionStore().step({ kind: 'tcp', axis: 'z' }, 1)
-    expect(alert).toHaveBeenCalledTimes(1)
+    const m = useMotionStore()
+    await m.step({ kind: 'tcp', axis: 'z' }, 1)
+    expect(m.notice).toEqual({ kind: 'unreachable' })
+    expect(m.state).toBe(STATE.stopped)
   })
 
   it('continuous motion runs at the slider speed until STOP (state 4)', async () => {
@@ -138,9 +188,9 @@ describe('motion store (simulation)', () => {
     m.stop()
     await run
     expect(m.state).toBe(STATE.stopped)
-    // 40 deg/s for ~0.26 s, allow for timer jitter
+    // 45 deg/s for ~0.26 s, allow for timer jitter
     expect(robot.q[0]).toBeGreaterThan(4)
-    expect(robot.q[0]).toBeLessThan(14)
+    expect(robot.q[0]).toBeLessThan(16)
   })
 
   it('Home drives all joints to zero; Align uses the sidecar result', async () => {
@@ -154,14 +204,14 @@ describe('motion store (simulation)', () => {
     expect(robot.q).toEqual([0, 0, 0, 2, 3, 4])
     unreachable = true
     await m.align()
-    expect(alert).toHaveBeenCalledTimes(1)
+    expect(m.notice).toEqual({ kind: 'align' })
   })
 })
 
 describe('Home / Align click and hold', () => {
   let unreachable = false
   beforeEach(async () => {
-    alert.mockClear()
+    localStorage.clear()
     unreachable = false
     setActivePinia(createPinia())
     const handlers = {
@@ -229,13 +279,15 @@ describe('Home / Align click and hold', () => {
     expect(m.state).toBe(STATE.stopped)
   })
 
-  it('Align unreachable pops up before any motion, for click and hold', async () => {
+  it('Align unreachable sets notice before any motion, for click and hold', async () => {
     const m = useMotionStore()
     const robot = useRobotStore()
     unreachable = true
     await m.goStep('align')
+    expect(m.notice).toEqual({ kind: 'align' })
+    m.clearNotice()
     await m.goStart('align')
-    expect(alert).toHaveBeenCalledTimes(2)
+    expect(m.notice).toEqual({ kind: 'align' })
     expect(robot.q).toEqual([0, 0, 0, 0, 0, 0])
     expect(m.state).toBe(STATE.stopped)
   })

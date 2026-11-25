@@ -1,5 +1,6 @@
-// Motion control bar settings and pure helpers (simulation only).
-// All tunables live here; a settings page will make them configurable later.
+// Motion control settings and pure helpers (simulation only).
+// Long-press threshold and continuous speed mapping match ufactory_robot_viewer;
+// click steps and safety boundaries remain user-configurable in Settings.
 
 export const MOTION = {
   /** Default click step on a linear TCP axis (mm); user-configurable in Settings > Jog. */
@@ -10,11 +11,16 @@ export const MOTION = {
   stepMmRange: [0.01, 100] as [number, number],
   stepDegRange: [0.01, 45] as [number, number],
   /** Holding a button longer than this switches to continuous motion (ms). */
-  longPressMs: 300,
-  /** Linear speed at 100 % (mm/s). */
-  maxLinearMmS: 230,
-  /** Joint and TCP rotation speed at 100 % (deg/s). */
-  maxAngularDegS: 40,
+  longPressMs: 220,
+  /** Linear TCP speed range for 1%–100% (mm/s). */
+  minLinearMmS: 2.5,
+  maxLinearMmS: 250,
+  /** Minimum angular speed at 1% (deg/s). */
+  minAngularDegS: 1,
+  /** TCP orientation speed at 100% (deg/s). */
+  maxTcpAngularDegS: 40,
+  /** Joint speed at 100% (deg/s). */
+  maxJointDegS: 45,
   /** Default speed slider position (%). */
   defaultSpeedPct: 50,
   /** Continuous-motion update period (ms). */
@@ -45,10 +51,51 @@ export function sanitizeStep(v: unknown, range: [number, number], fallback: numb
   return Math.min(range[1], Math.max(range[0], n))
 }
 
-/** Continuous rate (mm/s or deg/s) at a speed percentage. */
+/** Validate persisted speed percentage (integer 1–100); returns fallback otherwise. */
+export function sanitizeSpeedPct(v: unknown, fallback: number = MOTION.defaultSpeedPct): number {
+  if (typeof v === 'string' && v.trim() === '') return fallback
+  if (typeof v !== 'number' && typeof v !== 'string') return fallback
+  const n = Number(v)
+  if (!Number.isInteger(n) || n < 1 || n > 100) return fallback
+  return n
+}
+
+/** Joint & preset (Home/Align) continuous angular velocity (1–45 deg/s). */
+export function jointVelocity(speedPct: number): number {
+  const p = Math.min(100, Math.max(1, Math.round(speedPct)))
+  return MOTION.minAngularDegS + ((p - 1) * (MOTION.maxJointDegS - MOTION.minAngularDegS)) / 99
+}
+
+/** Continuous rate (mm/s or deg/s) at a speed percentage (1%–100%). */
 export function rate(t: JogTarget, speedPct: number): number {
-  const pct = Math.min(100, Math.max(1, speedPct)) / 100
-  return (isLinear(t) ? MOTION.maxLinearMmS : MOTION.maxAngularDegS) * pct
+  const p = Math.min(100, Math.max(1, Math.round(speedPct)))
+  if (t.kind === 'joint') return jointVelocity(p)
+  if (isLinear(t)) return p * MOTION.minLinearMmS
+  return MOTION.minAngularDegS + ((p - 1) * (MOTION.maxTcpAngularDegS - MOTION.minAngularDegS)) / 99
+}
+
+/** Cartesian axes unavailable for a given robot DOF (xArm 5 cannot jog Roll independently). */
+export function disabledTcpAxes(dof: number): TcpAxis[] {
+  return dof === 5 ? ['roll'] : []
+}
+
+/** Compute zero-centered bidirectional progress geometry (%) for a joint meter. */
+export function jointProgress(valueDeg: number, lo: number, hi: number): {
+  zeroPct: number
+  currentPct: number
+  fillLeft: number
+  fillWidth: number
+} {
+  const span = hi - lo
+  const frac = (v: number) => (span > 0 ? Math.min(100, Math.max(0, ((v - lo) / span) * 100)) : 50)
+  const zeroPct = frac(0)
+  const currentPct = frac(valueDeg)
+  return {
+    zeroPct,
+    currentPct,
+    fillLeft: Math.min(zeroPct, currentPct),
+    fillWidth: Math.abs(currentPct - zeroPct),
+  }
 }
 
 /** Move joint i by delta, clamped to [lo, hi]. hitLimit is true when the clamp kicked in. */
@@ -114,12 +161,16 @@ export class PressHold {
     }
     this.release()
   }
-}
-
-/** Which pad segment (0 top, 1 right, 2 bottom, 3 left) a point hits, or -1 for the hub / outside. */
-export function padSegment(dx: number, dy: number, inner: number, outer: number): number {
-  const r = Math.hypot(dx, dy)
-  if (r < inner || r > outer) return -1
-  const a = (Math.atan2(dx, -dy) * 180) / Math.PI // 0 = up, clockwise
-  return Math.round(((a + 360) % 360) / 90) % 4
+  /** External stop: clear state and pending timer without firing callbacks. */
+  abort() {
+    if (this.timer) {
+      clearTimeout(this.timer)
+      this.timer = null
+    }
+    this.down = false
+    this.holding = false
+  }
+  isActive(): boolean {
+    return this.down
+  }
 }

@@ -10,8 +10,9 @@
   },
   "robot": {
     "title": "机型",
+    "toolTitle": "末端工具",
     "model": "型号",
-    "endEffector": "末端",
+    "endEffector": "末端执行器",
     "mounting": "安装",
     "floor": "地面",
     "none": "无",
@@ -22,7 +23,8 @@
     "hint": "相对法兰，mm / °",
     "apply": "应用",
     "flange": "法兰",
-    "toolDefault": "工具默认"
+    "toolDefault": "工具默认",
+    "summaryNone": "法兰 (0)"
   },
   "payload": {
     "title": "TCP Payload",
@@ -32,12 +34,13 @@
     "apply": "应用"
   },
   "view": {
-    "reset": "重置视角",
-    "base": "Base",
-    "tcp": "TCP",
+    "reset": "复位视角",
+    "base": "基坐标系",
+    "tcp": "TCP 坐标系",
     "com": "COM",
     "loading": "正在加载模型…",
     "loadFailed": "模型加载失败",
+    "retry": "重试",
     "axes": "坐标轴：X 红、Y 绿、Z 蓝"
   },
   "engine": {
@@ -59,15 +62,29 @@
     "lite6_vacuum_gripper": "Lite6 真空吸头"
   },
   "motion": {
+    "panelTitle": "运动控制",
+    "cartesian": "笛卡尔控制",
+    "joint": "关节控制",
+    "position": "位置",
+    "orientation": "姿态",
     "speed": "速度",
-    "home": "回零",
-    "align": "对齐",
+    "home": "初始位置",
+    "align": "末端调平",
     "collapse": "收起 / 展开",
+    "expandCartesian": "展开笛卡尔控制",
+    "collapseCartesian": "收起笛卡尔控制",
+    "expandJoint": "展开关节控制",
+    "collapseJoint": "收起关节控制",
+    "jointDecrease": "关节 {j} 减小",
+    "jointIncrease": "关节 {j} 增加",
+    "jointAngle": "关节 {j} 角度",
+    "jointPosition": "关节 {j} 位置",
+    "dismissNotice": "关闭提示",
     "errTitle": "运动已停止",
     "errLimit": "已到达关节限位。",
     "errJointLimit": "J{j} 已到达关节限位。",
     "errUnreachable": "目标不可达（超出工作空间、接近奇异点或关节限位）。",
-    "errAlign": "从当前姿态只转动最后三个关节，无法让末端朝下。",
+    "errAlign": "无法在关节限位内调平末端；已保留当前姿态。",
     "errBoundary": "{axis} 已到达安全边界（{side} {limit}）。",
     "min": "最小",
     "max": "最大"
@@ -75,7 +92,7 @@
   "info": {
     "state": "状态",
     "payload": "负载",
-    "tcp": "TCP 位置",
+    "tcp": "TCP 位姿",
     "joints": "关节角度",
     "moving": "运动中",
     "ready": "就绪",
@@ -92,7 +109,7 @@
     "about": "关于",
     "stepMm": "单击步长（直线）",
     "stepDeg": "单击步长（角度：关节、RPY）",
-    "jogHint": "按住超过 {ms} ms 为连续运动。100% 速度 = 直线 {lin} mm/s、角度 {ang} °/s（暂为固定值）。",
+    "jogHint": "按住超过 {ms} ms 为连续运动。速度 1%–100% 线性映射：直线 {linMin}–{linMax} mm/s、姿态 {angMin}–{tcpAngMax} °/s、关节 {angMin}–{jointAngMax} °/s。",
     "safetyHint": "{model} 的安全边界（按机型分别保存）。点动、回零和对齐到达边界即停止。TCP 范围为基坐标系，留空表示不限制；关节范围限制在机型限位以内。",
     "unbounded": "不限制",
     "resetBoundary": "恢复为机型限位",

@@ -1,13 +1,11 @@
 // Simulated motion control (no real robot): click = one step, hold = continuous, release/STOP = state 4.
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import { ElMessageBox } from 'element-plus'
+import { computed, ref } from 'vue'
 import { useEngineStore } from './engine'
 import { useRobotStore } from './robot'
-import { i18n } from '../i18n'
 import { RpcError } from '../rpc/client'
 import type { FkResult, JogResult } from '../rpc/types'
-import { MOTION, STATE, approach, rate, stepSize, type JogTarget } from '../lib/motion'
+import { MOTION, STATE, approach, jointVelocity, rate, stepSize, type JogTarget } from '../lib/motion'
 import { checkBoundary, hasTcpBounds, violationAxis, type Boundary, type Violation } from '../lib/boundary'
 import { useSettingsStore } from './settings'
 import { fmt } from '../lib/units'
@@ -18,7 +16,37 @@ const JOINT_LIMIT = 3003
 
 const MAX_DT_S = 0.5
 
-class MotionError extends Error {}
+export type MotionNotice =
+  | { kind: 'boundary'; axis: string; side: 'min' | 'max'; limit: string }
+  | { kind: 'limit' }
+  | { kind: 'unreachable' }
+  | { kind: 'align' }
+  | { kind: 'raw'; message: string }
+
+/** Format a structured motion notice using the active i18n translator. */
+export function formatMotionNotice(
+  n: MotionNotice,
+  t: (key: string, params?: Record<string, unknown>) => string,
+): string {
+  switch (n.kind) {
+    case 'boundary':
+      return t('motion.errBoundary', { axis: n.axis, side: t(`motion.${n.side}`), limit: n.limit })
+    case 'limit':
+      return t('motion.errLimit')
+    case 'unreachable':
+      return t('motion.errUnreachable')
+    case 'align':
+      return t('motion.errAlign')
+    case 'raw':
+      return n.message
+  }
+}
+
+class MotionError extends Error {
+  constructor(readonly notice: MotionNotice) {
+    super(notice.kind === 'raw' ? notice.message : notice.kind)
+  }
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
@@ -26,12 +54,20 @@ const now = () => (typeof performance !== 'undefined' ? performance.now() : Date
 export const useMotionStore = defineStore('motion', () => {
   const engine = useEngineStore()
   const robot = useRobotStore()
-  const speed = ref<number>(MOTION.defaultSpeedPct)
+  const settings = useSettingsStore()
+
+  const speed = computed<number>({
+    get: () => settings.speedPct,
+    set: (v: number) => settings.setSpeedPct(v),
+  })
   const state = ref<number>(STATE.ready)
   const active = ref<JogTarget | null>(null)
+  const notice = ref<MotionNotice | null>(null)
   let token = 0
 
-  const settings = useSettingsStore()
+  function clearNotice() {
+    notice.value = null
+  }
 
   function boundary(): Boundary {
     const model = robot.info?.limits_deg ?? robot.q.map(() => [-360, 360] as [number, number])
@@ -39,9 +75,13 @@ export const useMotionStore = defineStore('motion', () => {
   }
 
   function violationError(v: Violation): MotionError {
-    const t = i18n.global.t
     const unit = v.kind === 'joint' ? '°' : ' mm'
-    return new MotionError(t('motion.errBoundary', { axis: violationAxis(v), side: t(`motion.${v.side}`), limit: `${fmt(v.limit, 1)}${unit}` }))
+    return new MotionError({
+      kind: 'boundary',
+      axis: violationAxis(v),
+      side: v.side,
+      limit: `${fmt(v.limit, 1)}${unit}`,
+    })
   }
 
   /** Throw if moving to nextQ (and its TCP pose) leaves the safety boundary. */
@@ -55,14 +95,13 @@ export const useMotionStore = defineStore('motion', () => {
     if (v) throw violationError(v)
   }
 
-  function describe(e: unknown): string {
-    const t = i18n.global.t
-    if (e instanceof MotionError) return e.message
+  function toNotice(e: unknown): MotionNotice {
+    if (e instanceof MotionError) return e.notice
     if (e instanceof RpcError) {
-      if (e.code === JOINT_LIMIT) return t('motion.errLimit')
-      if (e.code === IK_UNREACHABLE || e.code === IK_NOT_CONVERGED) return t('motion.errUnreachable')
+      if (e.code === JOINT_LIMIT) return { kind: 'limit' }
+      if (e.code === IK_UNREACHABLE || e.code === IK_NOT_CONVERGED) return { kind: 'unreachable' }
     }
-    return e instanceof Error ? e.message : String(e)
+    return { kind: 'raw', message: e instanceof Error ? e.message : String(e) }
   }
 
   /** Apply one increment (mm or deg, signed). Throws MotionError/RpcError when the move is impossible. */
@@ -84,6 +123,7 @@ export const useMotionStore = defineStore('motion', () => {
         throw violationError(v)
       }
       await guard(want)
+      clearNotice()
       void robot.setQ(want)
       return
     }
@@ -91,16 +131,13 @@ export const useMotionStore = defineStore('motion', () => {
       session_id: robot.sessionId, q_deg: [...robot.q], axis: t.axis, delta,
     })
     await guard(r.q_deg, r.tcp_pose)
+    clearNotice()
     void robot.setQ(r.q_deg)
   }
 
-  async function fail(e: unknown) {
+  function fail(e: unknown) {
     stop()
-    try {
-      await ElMessageBox.alert(describe(e), i18n.global.t('motion.errTitle'), { type: 'warning' })
-    } catch {
-      /* dialog closed */
-    }
+    notice.value = toNotice(e)
   }
 
   /** Single click: one step (Settings > Jog, default 1 mm / 1 deg). */
@@ -113,7 +150,7 @@ export const useMotionStore = defineStore('motion', () => {
       await applyDelta(t, dir * stepSize(t, { mm: settings.stepMm, deg: settings.stepDeg }))
       if (my === token) stop()
     } catch (e) {
-      await fail(e)
+      fail(e)
     }
   }
 
@@ -133,7 +170,7 @@ export const useMotionStore = defineStore('motion', () => {
       try {
         await applyDelta(t, dir * rate(t, speed.value) * dt)
       } catch (e) {
-        if (my === token) await fail(e)
+        if (my === token) fail(e)
         return
       }
     }
@@ -151,14 +188,15 @@ export const useMotionStore = defineStore('motion', () => {
       const tNow = now()
       const dt = Math.min(MAX_DT_S, (tNow - last) / 1000)
       last = tNow
-      const r = approach(robot.q, target, MOTION.maxAngularDegS * (speed.value / 100) * dt)
+      const r = approach(robot.q, target, jointVelocity(speed.value) * dt)
       try {
         await guard(r.q)
       } catch (e) {
-        if (my === token) await fail(e)
+        if (my === token) fail(e)
         return
       }
       if (my !== token) return
+      clearNotice()
       void robot.setQ(r.q)
       if (r.done) {
         if (my === token) stop()
@@ -169,14 +207,14 @@ export const useMotionStore = defineStore('motion', () => {
 
   type GoTarget = 'home' | 'align'
 
-  /** Joint target for Home (all zeros) or Align (sidecar). Shows the error and returns null if unreachable. */
+  /** Joint target for Home (all zeros) or Align (sidecar). Sets notice and returns null if unreachable. */
   async function resolveTarget(kind: GoTarget): Promise<number[] | null> {
     if (kind === 'home') return robot.q.map(() => 0)
     try {
       const r = await engine.call<JogResult>('motion.align', { session_id: robot.sessionId, q_deg: [...robot.q] })
       return r.q_deg
     } catch (e) {
-      await fail(e instanceof RpcError && e.code === IK_UNREACHABLE ? new MotionError(i18n.global.t('motion.errAlign')) : e)
+      fail(e instanceof RpcError && e.code === IK_UNREACHABLE ? new MotionError({ kind: 'align' }) : e)
       return null
     }
   }
@@ -193,9 +231,10 @@ export const useMotionStore = defineStore('motion', () => {
     try {
       await guard(next)
     } catch (e) {
-      await fail(e)
+      fail(e)
       return
     }
+    clearNotice()
     await robot.setQ(next)
     if (my === token) stop()
   }
@@ -219,5 +258,5 @@ export const useMotionStore = defineStore('motion', () => {
     state.value = STATE.stopped
   }
 
-  return { speed, state, active, step, startContinuous, goStep, goStart, home, align, stop, moveTo }
+  return { speed, state, active, notice, clearNotice, step, startContinuous, goStep, goStart, home, align, stop, moveTo }
 })

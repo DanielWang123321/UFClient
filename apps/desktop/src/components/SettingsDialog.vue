@@ -3,7 +3,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '../stores/settings'
-import { useRobotStore } from '../stores/robot'
+import { robotDisplayName, useRobotStore } from '../stores/robot'
 import { useEngineStore } from '../stores/engine'
 import { MOTION } from '../lib/motion'
 import type { Boundary } from '../lib/boundary'
@@ -31,8 +31,8 @@ const AX = ['X', 'Y', 'Z']
 </script>
 
 <template>
-  <el-dialog v-model="visible" :title="$t('settings.title')" width="560px" class="dark-panel dark-dialog" append-to-body>
-    <el-tabs v-model="tab" class="stabs" data-test="settings-dialog">
+  <el-dialog v-model="visible" :title="$t('settings.title')" width="560px" append-to-body>
+    <el-tabs v-model="tab" data-test="settings-dialog">
       <el-tab-pane :label="$t('settings.jog')" name="jog">
         <div class="row">
           <span>{{ $t('settings.stepMm') }}</span>
@@ -50,11 +50,22 @@ const AX = ['X', 'Y', 'Z']
           />
           <i>°</i>
         </div>
-        <p class="hint">{{ $t('settings.jogHint', { ms: MOTION.longPressMs, lin: MOTION.maxLinearMmS, ang: MOTION.maxAngularDegS }) }}</p>
+        <p class="hint">
+          {{
+            $t('settings.jogHint', {
+              ms: MOTION.longPressMs,
+              linMin: MOTION.minLinearMmS,
+              linMax: MOTION.maxLinearMmS,
+              angMin: MOTION.minAngularDegS,
+              tcpAngMax: MOTION.maxTcpAngularDegS,
+              jointAngMax: MOTION.maxJointDegS,
+            })
+          }}
+        </p>
       </el-tab-pane>
 
       <el-tab-pane :label="$t('settings.safety')" name="safety">
-        <p class="hint">{{ $t('settings.safetyHint', { model: robot.key }) }}</p>
+        <p class="hint">{{ $t('settings.safetyHint', { model: robotDisplayName(robot.key) }) }}</p>
         <div class="grid">
           <span />
           <b>{{ $t('motion.min') }}</b>
@@ -90,7 +101,7 @@ const AX = ['X', 'Y', 'Z']
         <div class="row">
           <span>{{ $t('settings.defaultRobot') }}</span>
           <el-select v-model="settings.defaultRobot" style="width: 160px">
-            <el-option v-for="r in robot.robots" :key="r.key" :label="r.key" :value="r.key" />
+            <el-option v-for="r in robot.robots" :key="r.key" :label="robotDisplayName(r.key, r.robot_name)" :value="r.key" />
           </el-select>
         </div>
         <div class="row">
@@ -116,19 +127,16 @@ const AX = ['X', 'Y', 'Z']
 
 <style scoped>
 .row { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
-.row > span { width: 170px; color: #9a9ca3; }
-.row i { font-style: normal; color: #9a9ca3; }
-.hint { color: #9a9ca3; font-size: 12px; line-height: 1.5; }
+.row > span { width: 170px; color: var(--uc-ink-muted); }
+.row i { font-style: normal; color: var(--uc-ink-muted); }
+.hint { color: var(--uc-ink-muted); font-size: 12px; line-height: 1.5; }
 .grid { display: grid; grid-template-columns: 1fr 120px 120px; gap: 6px 10px; align-items: center; max-height: 360px; overflow-y: auto; }
-.grid > span { color: #9a9ca3; font-size: 12px; }
-.grid b { font-weight: 500; font-size: 12px; }
+.grid > span { color: var(--uc-ink); font-size: 12px; }
+.grid b { font-weight: 600; font-size: 12px; color: var(--uc-ink-strong); }
 .grid :deep(.el-input-number) { width: 120px; }
-.lim { font-style: normal; color: #6f7177; font-size: 10px; }
+.lim { font-style: normal; color: var(--uc-ink-muted); font-size: 10px; }
 .reset { margin-top: 12px; }
 .kv { display: grid; grid-template-columns: 140px 1fr; gap: 10px 8px; font-size: 13px; }
-.kv i { font-style: normal; color: #9a9ca3; }
-.kv b { font-weight: 500; color: #fff; }
-.stabs :deep(.el-tabs__item) { color: #9a9ca3; }
-.stabs :deep(.el-tabs__item.is-active) { color: #fff; }
-.stabs :deep(.el-tabs__nav-wrap::after) { background: #303136; }
+.kv i { font-style: normal; color: var(--uc-ink-muted); }
+.kv b { font-weight: 600; color: var(--uc-ink-strong); }
 </style>

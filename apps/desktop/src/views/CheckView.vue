@@ -1,56 +1,113 @@
 <script setup lang="ts">
-// Check page shell, laid out exactly like the approved v8 mockup (1600x1000 reference):
-// a light 3D scene fills the window, dark rounded panels float on top.
+// Two-column desktop workbench inspired by ufactory_robot_viewer:
+// slim top header, full-height 3D stage on the left, 400px motion & configuration sidebar on the right.
+import { onBeforeUnmount, onMounted } from 'vue'
+import AppHeader from '../components/AppHeader.vue'
+import Viewport from '../components/Viewport.vue'
+import MotionPanel from '../components/MotionPanel.vue'
 import RobotPanel from '../components/RobotPanel.vue'
 import TcpPanel from '../components/TcpPanel.vue'
 import PayloadPanel from '../components/PayloadPanel.vue'
-import Viewport from '../components/Viewport.vue'
-import MotionBar from '../components/MotionBar.vue'
-import InfoPanel from '../components/InfoPanel.vue'
-import AppFooter from '../components/AppFooter.vue'
-import LangSwitch from '../components/LangSwitch.vue'
 import { useMotionStore } from '../stores/motion'
 
 const motion = useMotionStore()
 
-// Screen area covered by the panels, so the robot is centred in the free part of the scene.
-const insets = { left: 284, right: 274, top: 0, bottom: 260 }
+function stopAll() {
+  motion.stop()
+}
+
+function onVisibilityChange() {
+  if (document.hidden) motion.stop()
+}
+
+onMounted(() => {
+  window.addEventListener('blur', stopAll)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('blur', stopAll)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  motion.stop()
+})
 </script>
 
 <template>
-  <div class="check">
-    <div class="scene"><Viewport :insets="insets" /></div>
-    <aside class="panel left dark-panel">
-      <RobotPanel />
-      <div class="sep" />
-      <TcpPanel />
-      <div class="sep" />
-      <PayloadPanel />
-      <div class="grow" />
-      <AppFooter />
-    </aside>
-    <aside class="panel right dark-panel"><InfoPanel /></aside>
-    <MotionBar class="bar" />
-    <div class="topright">
-      <LangSwitch />
-      <button class="stop" data-test="stop" @click="motion.stop()">STOP</button>
-    </div>
+  <div class="workspace">
+    <AppHeader />
+    <main class="experience">
+      <section class="stage-pane">
+        <Viewport />
+      </section>
+      <aside class="control-shell">
+        <div class="sidebar-content">
+          <MotionPanel />
+          <div class="selection-stack">
+            <RobotPanel />
+            <TcpPanel />
+            <PayloadPanel />
+          </div>
+        </div>
+      </aside>
+    </main>
   </div>
 </template>
 
 <style scoped>
-/* values copied from mockup-bottom-panel.html (v8) */
-.check { position: relative; width: 100%; height: 100%; overflow: hidden; background: #f7f8f9; color: #e6e7ea;
-  font: 13px "Inter", "Noto Sans", Arial, sans-serif; }
-.scene { position: absolute; inset: 0; }
-.panel { position: absolute; background: #1f2023; border-radius: 16px; padding: 16px; box-sizing: border-box; }
-.left { left: 12px; top: 12px; bottom: 12px; width: 260px; display: flex; flex-direction: column; overflow-y: auto; }
-.right { right: 12px; top: 12px; bottom: 12px; width: 250px; overflow-y: auto; }
-.bar { position: absolute; left: 284px; right: 274px; bottom: 12px; }
-.sep { border-top: 1px solid #333; margin: 14px 0; flex: none; }
-.grow { flex: 1; min-height: 14px; }
-.topright { position: absolute; top: 16px; right: 286px; z-index: 9; display: flex; align-items: center; gap: 12px; }
-.stop { background: #e5383b; color: #fff; font: inherit; font-weight: 700;
-  letter-spacing: 1px; padding: 10px 30px; font-size: 15px; border: 0; border-radius: 6px; cursor: pointer; box-shadow: 0 0 0 2px rgba(229, 56, 59, .35); }
-.stop:hover { background: #f04a4d; }
+.workspace {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--uc-app-bg);
+  color: var(--uc-ink);
+}
+.experience {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 12px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+.stage-pane {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+.control-shell {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.sidebar-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.selection-stack {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .workspace {
+    height: auto;
+    min-height: 100%;
+    overflow-y: auto;
+  }
+  .experience {
+    display: flex;
+    flex-direction: column;
+  }
+  .stage-pane {
+    height: 480px;
+  }
+  .control-shell {
+    overflow: visible;
+    padding-right: 0;
+  }
+}
 </style>

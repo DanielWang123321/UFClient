@@ -1,7 +1,7 @@
-// User settings (Settings dialog), persisted to localStorage.
+// User settings (Settings dialog & persisted jog speed), persisted to localStorage.
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
-import { MOTION, sanitizeStep } from '../lib/motion'
+import { MOTION, sanitizeSpeedPct, sanitizeStep } from '../lib/motion'
 import { normalizeBoundary, type Boundary } from '../lib/boundary'
 
 export const SETTINGS_KEY = 'ugclient.settings'
@@ -17,6 +17,7 @@ export interface SessionConfig {
 interface Stored {
   stepMm?: number
   stepDeg?: number
+  speedPct?: number
   boundaries?: Record<string, Partial<Boundary>>
   defaultRobot?: string
   restoreSession?: boolean
@@ -35,6 +36,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const s = read()
   const stepMm = ref(sanitizeStep(s.stepMm, MOTION.stepMmRange, MOTION.stepMm))
   const stepDeg = ref(sanitizeStep(s.stepDeg, MOTION.stepDegRange, MOTION.stepDeg))
+  const speedPct = ref(sanitizeSpeedPct(s.speedPct, MOTION.defaultSpeedPct))
   const boundaries = ref<Record<string, Partial<Boundary>>>(s.boundaries ?? {})
   const defaultRobot = ref(s.defaultRobot ?? 'uf850')
   const restoreSession = ref(s.restoreSession ?? false)
@@ -42,18 +44,27 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function save() {
     const data: Stored = {
-      stepMm: stepMm.value, stepDeg: stepDeg.value, boundaries: boundaries.value,
-      defaultRobot: defaultRobot.value, restoreSession: restoreSession.value, session: session.value,
+      stepMm: stepMm.value, stepDeg: stepDeg.value, speedPct: speedPct.value,
+      boundaries: boundaries.value, defaultRobot: defaultRobot.value,
+      restoreSession: restoreSession.value, session: session.value,
     }
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(data))
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(data))
+    } catch {
+      /* keep UI functional when localStorage is unavailable */
+    }
   }
-  watch([stepMm, stepDeg, boundaries, defaultRobot, restoreSession, session], save, { deep: true })
+  watch([stepMm, stepDeg, speedPct, boundaries, defaultRobot, restoreSession, session], save, { deep: true })
 
   function setStepMm(v: unknown) {
     stepMm.value = sanitizeStep(v, MOTION.stepMmRange, stepMm.value)
   }
   function setStepDeg(v: unknown) {
     stepDeg.value = sanitizeStep(v, MOTION.stepDegRange, stepDeg.value)
+  }
+  function setSpeedPct(v: unknown) {
+    const n = Number(v)
+    if (Number.isFinite(n)) speedPct.value = Math.min(100, Math.max(1, Math.round(n)))
   }
 
   /** Effective boundary for a model: stored values clamped inside the model's joint limits. */
@@ -70,7 +81,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   return {
-    stepMm, stepDeg, boundaries, defaultRobot, restoreSession, session,
-    setStepMm, setStepDeg, boundaryFor, setBoundary, resetBoundary, save,
+    stepMm, stepDeg, speedPct, boundaries, defaultRobot, restoreSession, session,
+    setStepMm, setStepDeg, setSpeedPct, boundaryFor, setBoundary, resetBoundary, save,
   }
 })

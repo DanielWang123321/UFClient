@@ -1,25 +1,27 @@
 <script setup lang="ts">
+// End-effector card in the right sidebar (robot model selection lives in the 3D stage top-left).
 import { useRobotStore } from '../stores/robot'
+import { useMotionStore } from '../stores/motion'
+
 const robot = useRobotStore()
-async function onModel(k: string) {
-  await robot.select(k, 'none')
-}
+const motion = useMotionStore()
+
 async function onEe(ee: string) {
+  motion.stop()
+  motion.clearNotice()
   await robot.select(robot.key, ee)
 }
 </script>
 
 <template>
-  <div>
-    <div class="panel-title">{{ $t('robot.title') }}</div>
-    <el-form label-position="left" label-width="96px" size="small">
-      <el-form-item :label="$t('robot.model')">
-        <el-select :model-value="robot.key" data-test="robot-select" @update:model-value="onModel">
-          <el-option v-for="r in robot.robots" :key="r.key" :label="r.key" :value="r.key" />
-        </el-select>
-      </el-form-item>
-      <el-form-item :label="$t('robot.endEffector')">
-        <el-select :model-value="robot.endEffector" data-test="ee-select" @update:model-value="onEe">
+  <section class="selector-card">
+    <div class="selector-heading">
+      <h2>{{ $t('robot.toolTitle') }}</h2>
+    </div>
+    <div class="selector-panel">
+      <div class="tool-row">
+        <label>{{ $t('robot.endEffector') }}</label>
+        <el-select :model-value="robot.endEffector" size="small" data-test="ee-select" @update:model-value="onEe">
           <el-option
             v-for="e in robot.info?.end_effectors ?? ['none']"
             :key="e"
@@ -27,13 +29,56 @@ async function onEe(ee: string) {
             :value="e"
           />
         </el-select>
-      </el-form-item>
-      <el-form-item :label="$t('robot.mounting')">
-        <el-select model-value="floor" disabled>
-          <el-option :label="$t('robot.floor')" value="floor" />
-        </el-select>
-      </el-form-item>
-    </el-form>
-    <div class="hint">{{ $t('robot.eeHint') }}</div>
-  </div>
+      </div>
+      <div class="tool-row">
+        <label>{{ $t('robot.mounting') }}</label>
+        <span class="ro-val">{{ $t('robot.floor') }}</span>
+      </div>
+      <div class="hint">{{ $t('robot.eeHint') }}</div>
+    </div>
+  </section>
 </template>
+
+<style scoped>
+.selector-card {
+  min-width: 0;
+  border: 1px solid var(--uc-border);
+  border-radius: 4px;
+  background: var(--uc-panel-bg);
+}
+.selector-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 16px;
+}
+.selector-heading h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--uc-ink);
+}
+.selector-panel {
+  display: grid;
+  gap: 8px;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--uc-border);
+}
+.tool-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+.tool-row label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--uc-ink-muted);
+}
+.ro-val {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--uc-ink);
+  justify-self: end;
+}
+</style>

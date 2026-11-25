@@ -1,8 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-
-const { alert } = vi.hoisted(() => ({ alert: vi.fn<(...args: unknown[]) => Promise<string>>(async () => 'confirm') }))
-vi.mock('element-plus', () => ({ ElMessageBox: { alert } }))
 
 import { useEngineStore } from '../src/stores/engine'
 import { useRobotStore } from '../src/stores/robot'
@@ -51,7 +48,6 @@ describe('settings + motion', () => {
   let ws: FakeWs
   beforeEach(async () => {
     localStorage.clear()
-    alert.mockClear()
     setActivePinia(createPinia())
     const handlers = {
       'system.hello': () => HELLO,
@@ -88,20 +84,27 @@ describe('settings + motion', () => {
     expect(robot.q[0]).toBeCloseTo(7.5)
   })
 
-  it('persists settings and keeps boundaries per robot model', () => {
+  it('persists settings, boundaries per model, and jog speed percentage', () => {
     const s = useSettingsStore()
     s.setStepMm(3)
+    s.setSpeedPct(73)
     s.setBoundary('uf850', normalizeBoundary({ jointMax: [360, 20] }, MODEL), MODEL)
     s.save()
     setActivePinia(createPinia())
     const s2 = useSettingsStore()
     expect(s2.stepMm).toBe(3)
+    expect(s2.speedPct).toBe(73)
     expect(s2.boundaryFor('uf850', MODEL).jointMax[1]).toBe(20)
     expect(s2.boundaryFor('lite6', MODEL).jointMax[1]).toBe(150)
     expect(JSON.parse(localStorage.getItem(SETTINGS_KEY)!).boundaries.uf850).toBeTruthy()
+
+    // invalid persisted speed falls back to default 50
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ speedPct: 101 }))
+    setActivePinia(createPinia())
+    expect(useSettingsStore().speedPct).toBe(50)
   })
 
-  it('a joint jog stops on the user boundary and names the joint', async () => {
+  it('a joint jog stops on the user boundary and sets a J2 notice', async () => {
     const s = useSettingsStore()
     const m = useMotionStore()
     const robot = useRobotStore()
@@ -110,18 +113,17 @@ describe('settings + motion', () => {
     await m.step({ kind: 'joint', index: 1 }, 1)
     expect(robot.q[1]).toBe(10)
     expect(m.state).toBe(STATE.stopped)
-    expect(alert).toHaveBeenCalledTimes(1)
-    expect(String(alert.mock.calls[0][0])).toMatch(/J2/)
+    expect(m.notice).toMatchObject({ kind: 'boundary', axis: 'J2', side: 'max' })
   })
 
-  it('a TCP jog that leaves the TCP box is refused and names the axis', async () => {
+  it('a TCP jog that leaves the TCP box is refused and sets a TCP Z notice', async () => {
     const s = useSettingsStore()
     const m = useMotionStore()
     const robot = useRobotStore()
     s.setBoundary('uf850', normalizeBoundary({ tcpMax: [null, null, 200.5] }, MODEL), MODEL)
     await m.step({ kind: 'tcp', axis: 'z' }, 1)
     expect(robot.q).toEqual([0, 0, 0, 0, 0, 0])
-    expect(String(alert.mock.calls[0][0])).toMatch(/TCP Z/)
+    expect(m.notice).toMatchObject({ kind: 'boundary', axis: 'TCP Z', side: 'max' })
   })
 
   it('Home and Align stop at the boundary', async () => {
@@ -135,13 +137,13 @@ describe('settings + motion', () => {
     expect(robot.q[1]).toBeLessThanOrEqual(30)
     expect(robot.q[1]).toBeGreaterThan(20)
     expect(m.state).toBe(STATE.stopped)
-    expect(String(alert.mock.calls[0][0])).toMatch(/TCP Z/)
+    expect(m.notice).toMatchObject({ kind: 'boundary', axis: 'TCP Z', side: 'max' })
     // Home blocked by a joint boundary that excludes 0
-    alert.mockClear()
+    m.clearNotice()
     s.setBoundary('uf850', normalizeBoundary({ jointMin: [-360, 20] }, MODEL), MODEL)
     await robot.setQ([0, 25, 0, 0, 0, 0])
     await m.goStart('home')
     expect(robot.q[1]).toBeGreaterThanOrEqual(20)
-    expect(String(alert.mock.calls[0][0])).toMatch(/J2/)
+    expect(m.notice).toMatchObject({ kind: 'boundary', axis: 'J2', side: 'min' })
   })
 })

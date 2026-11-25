@@ -6,23 +6,46 @@ import URDFLoader, { type URDFRobot } from 'urdf-loader'
 
 export /** Camera distance factor for the robot framing (smaller = closer). */
 const VIEW_FIT = 1.35
-/** Solid coordinate axes, X red, Y green, Z blue (unlit, unaffected by fog, drawn over the robot meshes). */
-export const AXIS_COLORS = { x: 0xe5383b, y: 0x18c37a, z: 0x3b6ef5 } as const
+/** Solid coordinate axes, X red, Y green, Z blue (unlit, arrow-headed, drawn over the robot meshes). */
+export const AXIS_COLORS = { x: 0xe53935, y: 0x2ea043, z: 0x2574e8 } as const
+
 function makeAxes(len: number, r: number): THREE.Group {
   const g = new THREE.Group()
-  const geo = new THREE.CylinderGeometry(r, r, len, 12)
-  geo.translate(0, len / 2, 0) // cylinder along +Y from the origin
+  const headLength = len * 0.22
+  const headRadius = r * 2.4
+  const shaftLength = len - headLength
+  const shaftGeo = new THREE.CylinderGeometry(r, r, shaftLength, 16)
+  const headGeo = new THREE.ConeGeometry(headRadius, headLength, 20)
   const dirs: [keyof typeof AXIS_COLORS, THREE.Euler][] = [
     ['x', new THREE.Euler(0, 0, -Math.PI / 2)],
     ['y', new THREE.Euler(0, 0, 0)],
     ['z', new THREE.Euler(Math.PI / 2, 0, 0)],
   ]
   for (const [k, rot] of dirs) {
-    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: AXIS_COLORS[k], fog: false, depthTest: false }))
-    m.rotation.copy(rot)
-    m.renderOrder = 10
-    g.add(m)
+    const mat = new THREE.MeshBasicMaterial({
+      color: AXIS_COLORS[k],
+      depthTest: false,
+      transparent: true,
+      opacity: 0.94,
+      toneMapped: false,
+    })
+    const axis = new THREE.Group()
+    const shaft = new THREE.Mesh(shaftGeo, mat)
+    shaft.position.y = shaftLength / 2
+    shaft.renderOrder = 999
+    const head = new THREE.Mesh(headGeo, mat)
+    head.position.y = shaftLength + headLength / 2
+    head.renderOrder = 999
+    axis.add(shaft, head)
+    axis.rotation.copy(rot)
+    g.add(axis)
   }
+  const origin = new THREE.Mesh(
+    new THREE.SphereGeometry(r * 1.6, 16, 12),
+    new THREE.MeshBasicMaterial({ color: 0x1e293b, depthTest: false, toneMapped: false }),
+  )
+  origin.renderOrder = 1000
+  g.add(origin)
   return g
 }
 
@@ -45,13 +68,15 @@ export class SceneController {
   readonly controls: OrbitControls
   private robot: URDFRobot | null = null
   private eeLink = 'link6'
-  private tcpAxes = makeAxes(0.08, 0.0025)
-  private baseAxes = makeAxes(0.15, 0.004)
+  private tcpAxes = makeAxes(0.1, 0.0022)
+  private baseAxes = makeAxes(0.14, 0.0026)
   private com = new THREE.Mesh(
     new THREE.SphereGeometry(1, 20, 14),
     new THREE.MeshStandardMaterial({ color: 0xff9f1c, emissive: 0x442200 }),
   )
   private gravityArrow = new THREE.ArrowHelper(new THREE.Vector3(0, 0, -1), new THREE.Vector3(), 0.1, 0xff9f1c)
+  private comUserVisible = true
+  private hasPayload = false
   private renderRequested = false
   private resizeObs: ResizeObserver | null = null
   private draco: DRACOLoader
@@ -59,28 +84,53 @@ export class SceneController {
   onLoaded: (ok: boolean, err?: unknown) => void = () => {}
 
   constructor(private host: HTMLElement) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true })
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping
+    this.renderer.toneMappingExposure = 1.2
+    this.renderer.shadowMap.enabled = true
+    this.renderer.shadowMap.type = THREE.PCFShadowMap
     host.appendChild(this.renderer.domElement)
 
-    this.scene.background = new THREE.Color(0xf7f8f9) // light scene as in the v8 mockup
-    this.scene.fog = new THREE.Fog(0xf7f8f9, 3, 10)
-    this.camera = new THREE.PerspectiveCamera(45, 1, 0.01, 50)
+    this.camera = new THREE.PerspectiveCamera(40, 1, 0.01, 50)
     this.camera.up.set(0, 0, 1)
     this.resetView()
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
-    this.controls.target.set(0.3, 0, 0.35)
+    this.controls.target.set(0.15, 0, 0.35)
+    this.controls.enableDamping = true
+    this.controls.dampingFactor = 0.35
     this.controls.addEventListener('change', () => this.requestRender())
     this.controls.update()
 
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x8a96a8, 2.4))
-    const sun = new THREE.DirectionalLight(0xffffff, 2.0)
-    sun.position.set(2, -2, 4)
-    this.scene.add(sun)
-    const grid = new THREE.GridHelper(8, 80, 0xd5d8dd, 0xe3e5e9)
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x7b8794, 2.2))
+    const key = new THREE.DirectionalLight(0xffffff, 2.6)
+    key.position.set(2, -3, 5)
+    key.castShadow = true
+    key.shadow.mapSize.set(2048, 2048)
+    key.shadow.camera.left = key.shadow.camera.bottom = -2.2
+    key.shadow.camera.right = key.shadow.camera.top = 2.2
+    key.shadow.bias = -0.0001
+    this.scene.add(key)
+    const fill = new THREE.DirectionalLight(0xd8e8ff, 1.2)
+    fill.position.set(-3, 1, 3)
+    this.scene.add(fill)
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(20, 20),
+      new THREE.ShadowMaterial({ color: 0x1e293b, opacity: 0.14, depthWrite: false }),
+    )
+    floor.position.z = -0.002
+    floor.receiveShadow = true
+    this.scene.add(floor)
+
+    const grid = new THREE.GridHelper(6, 60, 0xcbd5e1, 0xdce3ec)
     grid.rotation.x = Math.PI / 2
+    const gridMat = grid.material as THREE.Material
+    gridMat.transparent = true
+    gridMat.opacity = 0.45
     this.scene.add(grid)
+
     this.scene.add(this.baseAxes)
     this.com.visible = false
     this.gravityArrow.visible = false
@@ -93,22 +143,27 @@ export class SceneController {
     this.resize()
   }
 
-  /** Default view; once a robot is loaded it is framed to fill the free scene area. */
+  /** Default view; once a robot is loaded it is framed to fill the free stage area. */
   resetView() {
-    let target = new THREE.Vector3(0.3, 0, 0.35)
-    let pos = new THREE.Vector3(1.9, -1.6, 1.3)
+    let target = new THREE.Vector3(0.15, 0, 0.35)
+    let pos = new THREE.Vector3(1.5, -1.5, 1.2)
     if (this.robot && this.reach > 0) {
-      // Frame the whole reachable envelope (pose independent), not the current pose.
-      const sphere = new THREE.Sphere(new THREE.Vector3(0.1 * this.reach, 0, 0.45 * this.reach), 0.62 * this.reach)
+      const sphere = new THREE.Sphere(new THREE.Vector3(0.08 * this.reach, 0, 0.44 * this.reach), 0.6 * this.reach)
       target = sphere.center.clone()
-      const dir = new THREE.Vector3(0.45, 1.0, 0.42).normalize()
+      const dir = new THREE.Vector3(0.55, -0.95, 0.46).normalize()
       const fov = THREE.MathUtils.degToRad(this.camera.fov)
       pos = target.clone().addScaledVector(dir, (sphere.radius / Math.sin(fov / 2)) * VIEW_FIT)
     }
-    this.camera.position.copy(pos)
-    this.camera.lookAt(target)
-    this.controls?.target.copy(target)
-    this.controls?.update()
+    if (this.controls) {
+      this.controls.enableDamping = false
+      this.camera.position.copy(pos)
+      this.controls.target.copy(target)
+      this.controls.update()
+      this.controls.enableDamping = true
+    } else {
+      this.camera.position.copy(pos)
+      this.camera.lookAt(target)
+    }
     this.requestRender()
   }
 
@@ -116,7 +171,6 @@ export class SceneController {
     this.eeLink = eeLink
     const seq = ++this.loadSeq
     if (this.robot) {
-      // keep the shared overlay helpers alive; only the robot meshes are disposed
       for (const o of [this.tcpAxes, this.com, this.gravityArrow]) o.removeFromParent()
       this.scene.remove(this.robot)
       this.disposeObject(this.robot)
@@ -130,7 +184,15 @@ export class SceneController {
     loader.loadMeshCb = (path, _m, _material, done) => {
       gltf.load(
         path,
-        (g) => done(g.scene),
+        (g) => {
+          g.scene.traverse((obj) => {
+            if (obj instanceof THREE.Mesh) {
+              obj.castShadow = true
+              obj.receiveShadow = true
+            }
+          })
+          done(g.scene)
+        },
         undefined,
         (err) => {
           failed = path
@@ -177,7 +239,8 @@ export class SceneController {
   }
 
   setPayload(massKg: number, comMm: number[]) {
-    const show = massKg > 0
+    this.hasPayload = massKg > 0
+    const show = this.hasPayload && this.comUserVisible
     this.com.visible = show
     this.gravityArrow.visible = show
     const r = 0.012 * Math.cbrt(Math.max(massKg, 0.01))
@@ -190,9 +253,16 @@ export class SceneController {
   }
 
   setVisible(what: 'base' | 'tcp' | 'com', on: boolean) {
-    const obj = what === 'base' ? this.baseAxes : what === 'tcp' ? this.tcpAxes : this.com
-    obj.visible = on
-    if (what === 'com') this.gravityArrow.visible = on
+    if (what === 'base') {
+      this.baseAxes.visible = on
+    } else if (what === 'tcp') {
+      this.tcpAxes.visible = on
+    } else {
+      this.comUserVisible = on
+      const show = this.hasPayload && on
+      this.com.visible = show
+      this.gravityArrow.visible = show
+    }
     this.requestRender()
   }
 
@@ -215,7 +285,6 @@ export class SceneController {
     })
   }
 
-  /** Screen-space insets (px) covered by floating panels; the view is centred in the free area. */
   /** Sum of joint offsets = an upper bound of the arm's reach (m). */
   private reach = 0
   private insets = { left: 0, right: 0, top: 0, bottom: 0 }
