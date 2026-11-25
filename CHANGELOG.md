@@ -4,6 +4,29 @@ All notable changes to UGClient (formerly Uclient) are documented here. Format: 
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-25
+
+### Added
+- Real robot control for physical UFACTORY arms (xArm 6, default IP `192.168.1.60`) via `xarm-python-sdk`:
+  - Sidecar `real.*` JSON-RPC API (`real.connect`, `real.disconnect`, `real.status`, `real.enable`, `real.clear_error`, `real.stop`, `real.step_joint`, `real.step_tcp`, `real.move_joints`, `real.jog_joint_vel`, `real.jog_tcp_vel`, `real.set_tcp`, `real.set_payload`) and 15 Hz `real.state` WebSocket push notifications.
+  - Safety guards: default simulation mode on startup, controller `(axis, device_type)` model verification, live hardware `motor_enable_states`/`motor_brake_states` detection on connect (no duplicate enable prompt when motors are already enabled), no automatic `clean_error()`, conservative 20% initial speed on entering real mode, smooth single-send continuous velocity (`duration=0`) backed by a `0.4 s` sidecar heartbeat watchdog, decelerated stop (`set_state(6)`) on button release, non-blocking fast-path `real.stop` (`set_state(4)`), per-model safety boundary checks, and automatic stop/disconnect on WebSocket close or shutdown.
+  - Simplified header real-robot connection/status pill & dialog (`RealRobotControl`), model selector lock while connected, `MotionPanel` enable/fault guard banner, and confirmed stationary TCP/Payload write-back.
+- Collapse/expand toggle button on the 3D stage top-right TCP pose & joint angles telemetry card (`StageTelemetry.vue`), shrinking to a compact header pill when collapsed while keeping 3D orbit drag pass-through on the expanded readout.
+- Support for upstream `vacuum_gripper` end effector on UF850 and xArm 5/6/7, plus `STLLoader` fallback in `SceneController` for end-effector links with STL visuals (e.g. Lite 6 gripper fingers).
+- Windows 10+ NSIS installer (`*-setup.exe`) packaging in CI and multi-platform GitHub Release workflow (`build-linux` + `build-windows` -> `publish` with combined `SHA256SUMS.txt`), using `conda-forge` (`core/environment-win.yml`) via `mamba-org/setup-micromamba`.
+
+### Changed
+- Replaced `docs/images/main-view.png` and `docs/images/settings.png` with 0.3.1 two-column English UI screenshots, and synced `README.md` / `README.zh.md` with the new workbench layout, motion speeds (`220 ms` hold, `2.3–230 mm/s`, `1–40 °/s` TCP, `1–45 °/s` joints), real-robot control, `ufactory_genesis` `v0.3.9` (`b33810e`), and Windows 10+ build instructions.
+- Removed the 3D stage bottom-right `COM` toggle/overlay (payload mass & COM remain configurable in `TCP Payload`) and the header/about personal-project badge from the app UI.
+- Synced upstream `ufactory_genesis` pin from `be49519` to `v0.3.9` (`b33810e`):
+  - Adapted `UfgCatalog` and `scripts/sync_assets.py` to upstream runtime URDF assembly (`assembly.yaml`) by pre-composing `(robot, end_effector)` visual URDFs into `urdf/composed/` and parsing default TCP frames in memory via `pin.buildModelFromXML`.
+  - Default TCP offsets for all end effectors are now read directly from upstream composed URDFs (Gripper G2 `173.5 mm`, BIO Gripper G2 `[157.639, -0.035, 57.516, 0, 0, -0.36]`, Vacuum Gripper `126.0 mm`, Lite 6 Gripper `83.6 mm`, Lite 6 Vacuum Gripper `61.0 mm`).
+  - Updated PyInstaller `core/ugclient-core.spec` to bundle `assembly.yaml`, `xarm-python-sdk`, and Windows `conda-forge` Pinocchio/EigenPy/Coal DLLs while keeping `torch`/`genesis` excluded and lazily importing `xarm` to protect stdout handshake.
+
+### Fixed
+- Real-robot continuous jogging no longer stutters in segments (replaced repeated finite-duration velocity commands with single-send continuous velocity + 100 ms heartbeat watchdog), and fixed first-press self-abort from initial ready state in `usePressHold.ts` plus Pinocchio `Data` thread locking in `rpc.py`.
+- Windows sidecar launch/termination console window flash (`CREATE_NO_WINDOW` in `sidecar.rs`) and URDF loading under non-ASCII Windows installation paths (`pin.buildModelFromXML` via UTF-8 read in `factory.py`).
+
 ## [0.3.0] - 2026-10-12
 
 ### Changed

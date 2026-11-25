@@ -125,6 +125,18 @@ export const useRobotStore = defineStore('robot', () => {
     await refresh()
   }
 
+  /** Apply real-time telemetry pushed from a connected physical robot without firing redundant FK RPCs. */
+  function applyExternalState(qDeg: number[], tcpPose?: number[]) {
+    q.value = [...qDeg]
+    if (tcpPose && tcpPose.length === 6) {
+      const pose = [...tcpPose] as Pose6
+      fk.value = {
+        tcp_pose: pose,
+        flange_pose: fk.value?.flange_pose ?? pose,
+      }
+    }
+  }
+
   async function checkPose(target: Pose6, frame: 'tcp' | 'flange' = 'tcp') {
     busy.value = true
     try {
@@ -154,6 +166,6 @@ export const useRobotStore = defineStore('robot', () => {
 
   return {
     robots, key, endEffector, info, q, tcpOffset, payload, fk, torque, check, selectedSolution, lastError, busy,
-    sessionId, fetchRobots, load, select, applyTcp, applyPayload, refresh, setJoint, setQ, checkPose, selectSolution,
+    sessionId, fetchRobots, load, select, applyTcp, applyPayload, refresh, setJoint, setQ, applyExternalState, checkPose, selectSolution,
   }
 })

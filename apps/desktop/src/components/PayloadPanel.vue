@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRobotStore } from '../stores/robot'
+import { useRealStore } from '../stores/real'
 import { fmt } from '../lib/units'
 
+const { t } = useI18n()
 const robot = useRobotStore()
+const real = useRealStore()
 const open = ref(false)
 const mass = ref(robot.payload.mass_kg)
 const com = ref<number[]>([...robot.payload.com_mm])
@@ -15,6 +19,18 @@ watch(
     com.value = [...p.com_mm]
   },
 )
+
+async function onApply() {
+  const next = { mass_kg: mass.value, com_mm: [...com.value] }
+  if (!real.connected) {
+    await robot.applyPayload(next)
+    return
+  }
+  if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+    if (!window.confirm(t('payload.confirmReal'))) return
+  }
+  await real.writePayload(next)
+}
 </script>
 
 <template>
@@ -39,7 +55,7 @@ watch(
       </el-form>
       <div class="row">
         <span class="hint">{{ $t('payload.hint') }}</span>
-        <el-button size="small" type="primary" plain @click="robot.applyPayload({ mass_kg: mass, com_mm: com })">
+        <el-button size="small" type="primary" plain @click="onApply">
           {{ $t('payload.apply') }}
         </el-button>
       </div>

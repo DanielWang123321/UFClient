@@ -89,14 +89,22 @@ def test_schema_lists_every_method():
 
 
 def test_end_effector_combinations_and_default_tcp(client):
-    """Every supported arm x end effector loads, has a default TCP read from ufactory_genesis, and the
-    end effector is visual only (gravity torques do not change)."""
+    """Every supported arm x end effector loads, reads its default TCP from the upstream composed URDF,
+    and is visual only (gravity torques do not change)."""
     expected = {
-        "uf850": {"none", "gripper_g2", "bio_gripper_g2"},
-        "xarm5_1305": {"none", "gripper_g2", "bio_gripper_g2"},
-        "xarm6_1305": {"none", "gripper_g2", "bio_gripper_g2"},
-        "xarm7_1305": {"none", "gripper_g2", "bio_gripper_g2"},
+        "uf850": {"none", "gripper_g2", "bio_gripper_g2", "vacuum_gripper"},
+        "xarm5_1305": {"none", "gripper_g2", "bio_gripper_g2", "vacuum_gripper"},
+        "xarm6_1305": {"none", "gripper_g2", "bio_gripper_g2", "vacuum_gripper"},
+        "xarm7_1305": {"none", "gripper_g2", "bio_gripper_g2", "vacuum_gripper"},
         "lite6": {"none", "lite6_gripper", "lite6_vacuum_gripper"},
+    }
+    expected_tcp = {
+        "none": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "gripper_g2": [0.0, 0.0, 173.5, 0.0, 0.0, 0.0],
+        "bio_gripper_g2": [157.639, -0.035, 57.516, 0.0, 0.0, -0.36],
+        "vacuum_gripper": [0.0, 0.0, 126.0, 0.0, 0.0, 0.0],
+        "lite6_gripper": [0.0, 0.0, 83.6, 0.0, 0.0, 0.0],
+        "lite6_vacuum_gripper": [0.0, 0.0, 61.0, 0.0, 0.0, 0.0],
     }
     for r in client.call("robot.list"):
         assert set(r["end_effectors"]) == expected[r["key"]]
@@ -107,33 +115,30 @@ def test_end_effector_combinations_and_default_tcp(client):
             assert s["end_effector"] == ee
             off = s["default_tcp_offset"]
             assert len(off) == 6
+            assert off == pytest.approx(expected_tcp[ee], abs=1e-3)
             if ee == "none":
-                assert off == [0.0] * 6
-            elif ee == "lite6_vacuum_gripper":
-                assert s["default_tcp_source"] == "official"
-                assert off == [0.0, 0.0, 61.1, 0.0, 0.0, 0.0]
-            elif ee in ("gripper_g2", "lite6_gripper"):
-                assert s["default_tcp_source"].endswith("#joint_tcp")
-                assert off == pytest.approx([0, 0, 172.0 if ee == "gripper_g2" else 83.6, 0, 0, 0])
+                assert s["default_tcp_source"] == "none"
             else:
-                assert s["default_tcp_source"] == "official"
-                assert off == [159.5, 0.0, 59.5, 0.0, 0.0, 0.0]
+                assert s["default_tcp_source"].startswith(f"urdf:{r['key']}__{ee}__glb.urdf#")
             tau = client.call("dyn.gravity", session_id=s["session_id"], q_deg=q)["tau_nm"]
             base = base or tau
             np.testing.assert_allclose(tau, base, atol=1e-12)  # end effector adds no mass
 
 
-def test_g2_default_tcp_is_urdf_tcp_172_mm(client):
-    """Regression: the default TCP is the URDF tcp joint, not ``tool_tip_offset_z_m`` (101.1 mm)."""
+def test_g2_and_lite6_default_tcp_from_upstream_urdf(client):
+    """Regression: default TCP comes from the upstream composed URDF tcp joint, not ``tool_tip_offset_z_m``."""
     s = client.call("robot.info", robot="uf850", end_effector="gripper_g2")
-    assert s["default_tcp_offset"] == pytest.approx([0, 0, 172.0, 0, 0, 0])
-    assert s["default_tcp_source"] == "urdf:uf850_g2_visual.urdf#joint_tcp"
+    assert s["default_tcp_offset"] == pytest.approx([0, 0, 173.5, 0, 0, 0])
+    assert s["default_tcp_source"] == "urdf:uf850__gripper_g2__glb.urdf#joint_tcp"
     s = client.call("robot.info", robot="lite6", end_effector="lite6_gripper")
     assert s["default_tcp_offset"] == pytest.approx([0, 0, 83.6, 0, 0, 0])
+    s = client.call("robot.info", robot="lite6", end_effector="lite6_vacuum_gripper")
+    assert s["default_tcp_offset"] == pytest.approx([0, 0, 61.0, 0, 0, 0])
+    assert s["default_tcp_source"] == "urdf:lite6__lite6_vacuum_gripper__glb.urdf#joint_tcp"
 
 
 def test_synced_assets_cover_every_visual_urdf(tmp_path):
-    """Regression: gripper GLBs outside visual_glb/ were not copied, so grippers never rendered."""
+    """Regression: composed URDFs, cross-arm xArm6 meshes and gripper GLBs are all synced cleanly."""
     import importlib.util
     from pathlib import Path
 
@@ -150,30 +155,42 @@ def test_synced_assets_cover_every_visual_urdf(tmp_path):
     cat = factory.catalog()
     for key in cat.list_keys():
         for ee in cat.end_effectors(key):
-            rel = cat.info(key, ee).visual_urdf_relpath  # "urdf/<robot>/<file>"
+            rel = cat.info(key, ee).visual_urdf_relpath  # "urdf/<robot>/<file>" or "urdf/composed/<file>"
             urdf = dst / Path(rel).relative_to("urdf")
             assert urdf.is_file(), rel
             meshes = mod.visual_meshes(urdf)
             assert meshes, rel
             for m in meshes:
-                assert m.suffix == ".glb" and m.is_file(), f"{rel}: {m}"
+                assert m.suffix.lower() in {".glb", ".stl"} and m.is_file(), f"{rel}: {m}"
 
 
-def test_bio_g2_default_tcp_is_official_constant(client):
-    """BIO G2 uses the official UFACTORY offset on every arm (not the URDF tcp frame)."""
-    from ugclient_core.backend.catalog_ufg import OFFICIAL_TCP_OFFSETS
-
-    assert OFFICIAL_TCP_OFFSETS["bio_gripper_g2"] == (159.5, 0.0, 59.5, 0.0, 0.0, 0.0)
+def test_bio_g2_and_vacuum_default_tcp_from_upstream_urdf(client):
+    """BIO G2 and xArm Vacuum Gripper read their default TCP directly from the upstream v0.3.9 URDFs."""
     for robot in ("uf850", "xarm5_1305", "xarm6_1305", "xarm7_1305"):
-        s = client.call("robot.info", robot=robot, end_effector="bio_gripper_g2")
-        assert s["default_tcp_offset"] == [159.5, 0.0, 59.5, 0.0, 0.0, 0.0]
-        assert s["default_tcp_source"] == "official"
+        bio = client.call("robot.info", robot=robot, end_effector="bio_gripper_g2")
+        assert bio["default_tcp_offset"] == pytest.approx([157.639, -0.035, 57.516, 0.0, 0.0, -0.36], abs=1e-3)
+        assert bio["default_tcp_source"] == f"urdf:{robot}__bio_gripper_g2__glb.urdf#bio_gripper_g2_tcp_joint"
+        vac = client.call("robot.info", robot=robot, end_effector="vacuum_gripper")
+        assert vac["default_tcp_offset"] == pytest.approx([0.0, 0.0, 126.0, 0.0, 0.0, 0.0], abs=1e-3)
+        assert vac["default_tcp_source"] == f"urdf:{robot}__vacuum_gripper__glb.urdf#vacuum_joint_tcp"
 
 
-def test_lite6_vacuum_default_tcp_is_official_constant(client):
-    from ugclient_core.backend.catalog_ufg import OFFICIAL_TCP_OFFSETS
+def test_factory_loads_urdf_from_non_ascii_path(tmp_path):
+    """Windows non-ASCII install/user paths must load URDFs cleanly via UTF-8 XML."""
+    import shutil
+    from dataclasses import replace
+    from pathlib import Path
 
-    assert OFFICIAL_TCP_OFFSETS["lite6_vacuum_gripper"] == (0.0, 0.0, 61.1, 0.0, 0.0, 0.0)
-    s = client.call("robot.info", robot="lite6", end_effector="lite6_vacuum_gripper")
-    assert s["default_tcp_offset"] == [0.0, 0.0, 61.1, 0.0, 0.0, 0.0]
-    assert s["default_tcp_source"] == "official"
+    from ugclient_core.backend import factory
+
+    info = factory.catalog().info("uf850")
+    non_ascii_dir = tmp_path / "中文路径"
+    non_ascii_dir.mkdir(parents=True)
+    src_urdf = Path(info.urdf_path)
+    urdf_copy = non_ascii_dir / src_urdf.name
+    shutil.copy2(src_urdf, urdf_copy)
+
+    ref = factory.create(info)
+    copied = factory.create(replace(info, urdf_path=str(urdf_copy)))
+    q = np.zeros(info.dof)
+    np.testing.assert_allclose(copied.dyn.gravity(q), ref.dyn.gravity(q), atol=1e-12)

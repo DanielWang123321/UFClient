@@ -1,4 +1,4 @@
-// In-memory WebSocket fake that answers JSON-RPC like the sidecar.
+// In-memory WebSocket fake that answers JSON-RPC like the sidecar (supports server notifications).
 type Handler = (params: Record<string, unknown>) => unknown
 
 export class FakeWs {
@@ -26,6 +26,9 @@ export class FakeWs {
       : { jsonrpc: '2.0', id: req.id, error: { code: -32601, message: 'method not found' } }
     queueMicrotask(() => this.onmessage?.({ data: JSON.stringify(resp) } as MessageEvent))
   }
+  push(method: string, params: unknown) {
+    this.onmessage?.({ data: JSON.stringify({ jsonrpc: '2.0', method, params }) } as MessageEvent)
+  }
   close() {
     this.onclose?.({} as CloseEvent)
   }
@@ -33,10 +36,10 @@ export class FakeWs {
 
 export const HELLO = {
   api_version: '1.0',
-  core_version: '0.3.0',
-  ufactory_genesis_version: '0.3.0',
-  ufactory_genesis_commit: 'be49519',
+  core_version: '0.3.1',
+  ufactory_genesis_version: '0.3.9',
+  ufactory_genesis_commit: 'b33810e',
   pinocchio_version: '4.0.0',
-  capabilities: ['kin', 'dyn'],
+  capabilities: ['kin', 'dyn', 'real'],
   backend: { kin: 'ugclient', dyn: 'ugclient' },
 }

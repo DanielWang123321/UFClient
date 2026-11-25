@@ -13,8 +13,8 @@ export const MOTION = {
   /** Holding a button longer than this switches to continuous motion (ms). */
   longPressMs: 220,
   /** Linear TCP speed range for 1%–100% (mm/s). */
-  minLinearMmS: 2.5,
-  maxLinearMmS: 250,
+  minLinearMmS: 2.3,
+  maxLinearMmS: 230,
   /** Minimum angular speed at 1% (deg/s). */
   minAngularDegS: 1,
   /** TCP orientation speed at 100% (deg/s). */

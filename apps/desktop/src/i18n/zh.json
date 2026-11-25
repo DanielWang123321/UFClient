@@ -1,7 +1,6 @@
 {
   "app": {
-    "title": "UGClient",
-    "personal": "个人项目 · 非 UFACTORY 官方产品"
+    "title": "UGClient"
   },
   "tabs": {
     "check": "校核",
@@ -16,7 +15,8 @@
     "mounting": "安装",
     "floor": "地面",
     "none": "无",
-    "eeHint": "末端只用于显示和默认 TCP，质量请在 TCP Payload 中设置。"
+    "eeHint": "末端只用于显示和默认 TCP，质量请在 TCP Payload 中设置。",
+    "lockedReal": "真机连接中，机型已自动锁定为当前控制器型号。"
   },
   "tcp": {
     "title": "TCP Offset",
@@ -24,20 +24,21 @@
     "apply": "应用",
     "flange": "法兰",
     "toolDefault": "工具默认",
-    "summaryNone": "法兰 (0)"
+    "summaryNone": "法兰 (0)",
+    "confirmReal": "确认将新的 TCP Offset 写入真机控制器？请确保机械臂处于静止状态。"
   },
   "payload": {
     "title": "TCP Payload",
     "mass": "质量 (kg)",
     "com": "质心 (mm，法兰坐标系)",
     "hint": "工具+工件总质量，与 UFACTORY Studio 定义一致；末端模型只用于显示。",
-    "apply": "应用"
+    "apply": "应用",
+    "confirmReal": "确认将新的 TCP Payload 写入真机控制器？请确保机械臂处于静止状态。"
   },
   "view": {
     "reset": "复位视角",
     "base": "基坐标系",
     "tcp": "TCP 坐标系",
-    "com": "COM",
     "loading": "正在加载模型…",
     "loadFailed": "模型加载失败",
     "retry": "重试",
@@ -58,6 +59,9 @@
     "none": "无",
     "gripper_g2": "机械爪 G2",
     "bio_gripper_g2": "BIO 机械爪 G2",
+    "vacuum_gripper": "真空吸盘",
+    "robotiq_2f_85": "Robotiq 2F-85",
+    "robotiq_2f_140": "Robotiq 2F-140",
     "lite6_gripper": "Lite6 机械爪",
     "lite6_vacuum_gripper": "Lite6 真空吸头"
   },
@@ -94,12 +98,39 @@
     "payload": "负载",
     "tcp": "TCP 位姿",
     "joints": "关节角度",
+    "telemetryTitle": "位姿与关节",
+    "collapse": "收起位姿与关节面板",
+    "expand": "展开位姿与关节面板",
     "moving": "运动中",
     "ready": "就绪",
     "stopped": "已停止",
     "mode": "模式",
     "position": "位置",
     "readOnly": "只读"
+  },
+  "real": {
+    "title": "真机控制",
+    "simMode": "仿真模式",
+    "realMode": "真机模式",
+    "connectEntry": "连接真机",
+    "ip": "控制器 IP",
+    "connect": "连接",
+    "connecting": "连接中…",
+    "disconnect": "断开连接",
+    "enable": "使能电机",
+    "disable": "去使能",
+    "motorEnable": "电机使能",
+    "enabled": "已使能",
+    "disabled": "未使能",
+    "clearError": "清除错误",
+    "clearErrorConfirm": "请先确认已排查物理急停与机械臂周边障碍，再清除控制器错误。",
+    "model": "机型",
+    "firmware": "固件版本",
+    "stateMode": "状态 / 模式",
+    "errWarn": "错误 / 告警码",
+    "simRobotFlag": "控制器仿真模式",
+    "needEnableHint": "电机未使能，请先点击「使能电机」再执行运动。",
+    "errorHint": "控制器存在错误（错误码 {code}），运动已禁止；请排查后手动清除错误。"
   },
   "settings": {
     "title": "设置",

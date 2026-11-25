@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ugclient-core"
-version = "0.3.0"
+version = "0.3.1"
 description = "UGClient computation sidecar (kinematics / dynamics over JSON-RPC WebSocket)"
 requires-python = ">=3.12"
 license = {text = "MIT"}
@@ -14,8 +14,10 @@ authors = [{name = "Daniel Wang"}]
 dependencies = [
     "numpy>=1.26",
     "pyyaml>=6",
-    "websockets>=13,<16",
+    "packaging>=24",
+    "websockets>=13,<18",
     "pin==4.0.0",
+    "xarm-python-sdk>=1.14",
 ]
 
 [project.optional-dependencies]
@@ -30,8 +32,8 @@ include = ["ugclient_core*"]
 
 [tool.ugclient.ufactory_genesis]
 repository = "https://github.com/xArm-Developer/ufactory_genesis.git"
-# Pinned commit (design doc §9): be49519 carries the official UFACTORY maximum joint torques.
-commit = "be49519"
+# Pinned commit: v0.3.9 (runtime URDF assembly, unified xArm meshes, calibrated Gripper G2 & vacuum gripper).
+commit = "b33810e"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

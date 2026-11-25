@@ -9,6 +9,7 @@ import numpy as np
 
 from .backend import factory
 from .backend.factory import Backends
+from .backend.real_xarm import RealXArmController
 from .errors import SESSION_NOT_FOUND, RpcError
 
 
@@ -33,8 +34,9 @@ class RobotSession:
 
 
 class SessionStore:
-    def __init__(self) -> None:
+    def __init__(self, real: RealXArmController | None = None) -> None:
         self._sessions: dict[str, RobotSession] = {}
+        self.real: RealXArmController = real or RealXArmController()
 
     def create(self, key: str, end_effector: str = "none") -> RobotSession:
         info = factory.catalog().info(key, end_effector)

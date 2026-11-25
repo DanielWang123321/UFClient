@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatMotionNotice, useMotionStore } from '../stores/motion'
 import { useRobotStore } from '../stores/robot'
+import { useRealStore } from '../stores/real'
 
 defineProps<{ loadFailed?: boolean }>()
 defineEmits<{ retry: [] }>()
@@ -11,6 +12,7 @@ defineEmits<{ retry: [] }>()
 const { t } = useI18n()
 const motion = useMotionStore()
 const robot = useRobotStore()
+const real = useRealStore()
 
 const motionText = computed(() => (motion.notice ? formatMotionNotice(motion.notice, t) : ''))
 </script>
@@ -30,6 +32,17 @@ const motionText = computed(() => (motion.notice ? formatMotionNotice(motion.not
         type="button" class="notice-close" :aria-label="$t('motion.dismissNotice')"
         data-test="dismiss-motion-notice" @click="motion.clearNotice()"
       >
+        ×
+      </button>
+    </div>
+
+    <div v-if="real.connected && real.errorCode !== 0" class="stage-notice" role="alert" aria-atomic="true" data-test="real-fault-notice">
+      <span class="notice-text">{{ $t('real.errorHint', { code: real.errorCode }) }}</span>
+    </div>
+
+    <div v-if="real.lastError" class="stage-notice" role="alert" aria-atomic="true" data-test="real-error-notice">
+      <span class="notice-text">{{ real.lastError }}</span>
+      <button type="button" class="notice-close" :aria-label="$t('motion.dismissNotice')" @click="real.clearNotice()">
         ×
       </button>
     </div>

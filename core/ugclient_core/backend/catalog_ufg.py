@@ -1,10 +1,10 @@
 """RobotCatalog backed by ufactory_genesis (read-only use of upstream modules).
 
-Only ``ufactory.robots`` and ``ufactory.config`` are imported, never torch/genesis.
-Maximum joint torques (``effort_limits_nm``, UFACTORY joint parameters:
-https://docs.supportarticle.ufactory.cc/zhHans/support_articles/hardware/ufactory-joint-parameters.html)
-are read at runtime from the upstream runtime
-config and are never hard-coded in UGClient (design doc §9).
+Only ``ufactory.robots``, ``ufactory.config`` and ``ufactory.kinematics.tcp_offset`` are
+imported, never torch/genesis. Maximum joint torques (``effort_limits_nm``, UFACTORY joint
+parameters: https://docs.supportarticle.ufactory.cc/zhHans/support_articles/hardware/ufactory-joint-parameters.html)
+are read at runtime from the upstream runtime config and are never hard-coded in UGClient
+(design doc §9).
 """
 
 from __future__ import annotations
@@ -15,7 +15,8 @@ from pathlib import Path
 
 from ufactory.config.assets import RepositoryAssetStore
 from ufactory.config.loader import load_runtime_config
-from ufactory.robots.paths import robot_urdf, robot_visual_glb_urdf
+from ufactory.robots.assembly import build_assembly_tree, serialize_assembly, supported_end_effectors
+from ufactory.robots.paths import robot_urdf
 from ufactory.robots.registry import PROJECT_ROOT, ROBOT_PROFILES, get_robot_profile, joint_names
 
 from .interfaces import RobotInfo
@@ -23,16 +24,22 @@ from .interfaces import RobotInfo
 #: Models supported by UGClient (doc §1): xArm only in its _1305 revision, plus UF850 and Lite6.
 SUPPORTED_KEYS: tuple[str, ...] = ("uf850", "xarm5_1305", "xarm6_1305", "xarm7_1305", "lite6")
 
-_EE_FLAGS = {
-    "gripper_g2": "with_gripper_g2",
-    "bio_gripper_g2": "with_bio_gripper_g2",
-    "lite6_gripper": "with_lite6_gripper",
-    "lite6_vacuum_gripper": "with_lite6_vacuum_gripper",
-}
+#: TCP frames defined in upstream end-effector URDFs (searched in order after composing the arm + tool).
+_URDF_TCP_FRAMES: tuple[str, ...] = (
+    "link_tcp",
+    "vacuum_tcp",
+    "bio_gripper_g2_tcp_link",
+    "robotiq_2f_85_tcp_link",
+    "robotiq_2f_140_tcp_link",
+)
 
 
 def asset_root() -> Path:
     return Path(PROJECT_ROOT)
+
+
+def composed_visual_urdf_name(key: str, end_effector: str) -> str:
+    return f"{key}__{end_effector}__glb.urdf"
 
 
 class UfgCatalog:
@@ -44,17 +51,7 @@ class UfgCatalog:
         return [k for k in SUPPORTED_KEYS if k in ROBOT_PROFILES]
 
     def end_effectors(self, key: str) -> tuple[str, ...]:
-        p = get_robot_profile(key)
-        out = ["none"]
-        if p.supports_gripper_g2 and p.gripper_g2_visual_urdf:
-            out.append("gripper_g2")
-        if p.supports_bio_gripper_g2 and p.bio_gripper_g2_visual_urdf:
-            out.append("bio_gripper_g2")
-        if p.supports_lite6_gripper and p.lite6_gripper_visual_urdf:
-            out.append("lite6_gripper")
-        if p.supports_lite6_vacuum_gripper and p.lite6_vacuum_gripper_visual_urdf:
-            out.append("lite6_vacuum_gripper")
-        return tuple(out)
+        return ("none", *supported_end_effectors(key, root=asset_root()))
 
     def info(self, key: str, end_effector: str = "none") -> RobotInfo:
         if (key, end_effector) not in self._cache:
@@ -68,9 +65,14 @@ class UfgCatalog:
         ees = self.end_effectors(key)
         if end_effector not in ees:
             raise ValueError(f"end effector {end_effector!r} not available for {key}")
-        kwargs = {_EE_FLAGS[end_effector]: True} if end_effector != "none" else {}
-        visual = Path(robot_visual_glb_urdf(key, **kwargs))
+        if end_effector == "none":
+            visual_relpath = f"urdf/{profile.robot_name}/{profile.visual_glb_urdf}"
+        else:
+            visual_relpath = f"urdf/composed/{composed_visual_urdf_name(key, end_effector)}"
         cfg = load_runtime_config(key, asset_store=self._store)
+        home_q = getattr(cfg.arm, "home_qpos_rad", None)
+        home_q_rad = tuple(float(x) for x in home_q) if home_q is not None else (0.0,) * profile.dof
+        default_tcp, default_tcp_src = _default_tcp(key, end_effector, profile.ee_link)
         return RobotInfo(
             key=key,
             robot_name=profile.robot_name,
@@ -78,58 +80,47 @@ class UfgCatalog:
             ee_link=profile.ee_link,
             joint_names=tuple(joint_names(profile)),
             urdf_path=robot_urdf(key),  # pure arm URDF: payload is modelled separately (doc §6.1)
-            visual_urdf_relpath=visual.relative_to(asset_root() / "assets").as_posix(),
+            visual_urdf_relpath=visual_relpath,
             effort_limits_nm=tuple(float(x) for x in cfg.arm.effort_limits_nm),
-            home_q_rad=tuple(float(x) for x in cfg.arm.home_qpos_rad),
+            home_q_rad=home_q_rad,
             end_effectors=ees,
             end_effector=end_effector,
-            **dict(
-                zip(
-                    ("default_tcp_offset", "default_tcp_source"),
-                    _default_tcp(end_effector, visual, profile.ee_link),
-                    strict=True,
-                )
-            ),
+            default_tcp_offset=default_tcp,
+            default_tcp_source=default_tcp_src,
         )
 
     def versions(self) -> dict[str, str]:
         return {"ufactory_genesis_version": _ufg_version(), "ufactory_genesis_commit": _ufg_commit()}
 
 
-#: Official end-effector TCP offsets [x, y, z mm, r, p, y deg] that ufactory_genesis does not provide.
-#: BIO Gripper G2: official UFACTORY value per maintainer (same on all arms); the upstream URDF
-#: tcp frame differs slightly (e.g. y -1.8 mm / yaw -0.4 deg on xArm) and is not used.
-OFFICIAL_TCP_OFFSETS: dict[str, tuple[float, ...]] = {
-    "bio_gripper_g2": (159.5, 0.0, 59.5, 0.0, 0.0, 0.0),
-    # Lite6 vacuum gripper: official UFACTORY value per maintainer (upstream URDF has no tcp frame).
-    "lite6_vacuum_gripper": (0.0, 0.0, 61.1, 0.0, 0.0, 0.0),
-}
-#: TCP frames defined in the upstream combo URDFs.
-_URDF_TCP_FRAMES = ("link_tcp",)
+def _default_tcp(key: str, end_effector: str, ee_link: str) -> tuple[tuple[float, ...], str]:
+    """Default TCP offset of an end effector read directly from the upstream composed URDF.
 
-
-def _default_tcp(end_effector: str, visual_urdf: Path, ee_link: str) -> tuple[tuple[float, ...], str]:
-    """Default TCP offset of an end effector.
-
-    ``OFFICIAL_TCP_OFFSETS`` first (BIO G2, Lite6 vacuum); otherwise the tcp frame of the ufactory_genesis combo
-    URDF (``link_tcp`` for G2 / Lite6 gripper), read at runtime and expressed in the flange frame.
+    Composes the arm + end-effector tree in memory (never writes to read-only bundle dirs)
+    and parses it with Pinocchio to express the tool TCP frame in the flange frame.
     ``gripper.tool_tip_offset_z_m`` (runtime config) is a grasp-planning offset, not the TCP,
     and is deliberately not used.
-    Without either source the flange (zero offset) is used.
     """
     if end_effector == "none":
         return (0.0,) * 6, "none"
-    if end_effector in OFFICIAL_TCP_OFFSETS:
-        return OFFICIAL_TCP_OFFSETS[end_effector], "official"
-    import xml.etree.ElementTree as ET
 
     import numpy as np
     import pinocchio as pin
     from ufactory.kinematics.tcp_offset import matrix_to_rpy
 
-    model = pin.buildModelFromUrdf(str(visual_urdf))
+    root = asset_root()
+    tree = build_assembly_tree(
+        key,
+        end_effector,
+        visual="glb",
+        root=root,
+        out_dir=root / "assets" / "urdf" / "composed",
+    )
+    xml_str = serialize_assembly(tree).decode("utf-8")
+    model = pin.buildModelFromXML(xml_str)
     data = model.createData()
     pin.framesForwardKinematics(model, data, pin.neutral(model))
+    urdf_name = composed_visual_urdf_name(key, end_effector)
     for name in _URDF_TCP_FRAMES:
         if model.existFrame(name):
             T = data.oMf[model.getFrameId(ee_link)].actInv(data.oMf[model.getFrameId(name)])
@@ -137,13 +128,13 @@ def _default_tcp(end_effector: str, visual_urdf: Path, ee_link: str) -> tuple[tu
             rpy = [round(float(np.degrees(a)), 3) + 0.0 for a in matrix_to_rpy(T.rotation)]
             joint = next(
                 (
-                    j.get("name")
-                    for j in ET.parse(visual_urdf).getroot().iter("joint")
+                    j.get("name") or name
+                    for j in tree.iter("joint")
                     if j.find("child") is not None and j.find("child").get("link") == name
                 ),
                 name,
             )
-            return tuple(xyz + rpy), f"urdf:{visual_urdf.name}#{joint}"
+            return tuple(xyz + rpy), f"urdf:{urdf_name}#{joint}"
     return (0.0,) * 6, "none"
 
 

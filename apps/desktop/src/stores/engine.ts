@@ -9,6 +9,8 @@ export interface Handshake {
   token: string
 }
 
+type NotificationHandler = (params: unknown) => void
+
 /** Where the {port, token} handshake comes from: the Tauri shell, or URL/env in browser dev mode. */
 export async function resolveHandshake(): Promise<Handshake | null> {
   const w = window as unknown as { __TAURI_INTERNALS__?: unknown }
@@ -28,6 +30,25 @@ export const useEngineStore = defineStore('engine', () => {
   const error = ref('')
   const client = shallowRef<RpcClient>(markRaw(new RpcClient()))
   const restarts = ref(0)
+  const listeners = new Map<string, Set<NotificationHandler>>()
+
+  function dispatchNotification(method: string, params: unknown) {
+    const set = listeners.get(method)
+    if (!set) return
+    for (const fn of set) fn(params)
+  }
+
+  function onNotification(method: string, handler: NotificationHandler): () => void {
+    let set = listeners.get(method)
+    if (!set) {
+      set = new Set()
+      listeners.set(method, set)
+    }
+    set.add(handler)
+    return () => {
+      set?.delete(handler)
+    }
+  }
 
   async function connect(
     getHandshake: () => Promise<Handshake | null> = resolveHandshake,
@@ -39,6 +60,7 @@ export const useEngineStore = defineStore('engine', () => {
       const hs = await getHandshake()
       if (!hs) throw new Error('no engine handshake (start the sidecar or pass ?port=&token=)')
       const c = markRaw(makeClient())
+      c.onNotification = dispatchNotification
       c.onClose = () => {
         if (status.value === 'connected') status.value = 'error'
       }
@@ -57,5 +79,5 @@ export const useEngineStore = defineStore('engine', () => {
     return client.value.call<T>(method, params)
   }
 
-  return { status, hello, error, restarts, connect, call }
+  return { status, hello, error, restarts, connect, call, onNotification }
 })

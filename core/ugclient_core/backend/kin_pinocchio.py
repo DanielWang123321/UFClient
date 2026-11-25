@@ -13,6 +13,22 @@ from .interfaces import IkSolution
 
 N_SEEDS = 32
 DEDUP_RAD = 1e-3
+LINEAR_AXES = {"x": 0, "y": 1, "z": 2}
+ROT_AXES = {"roll": 0, "pitch": 1, "yaw": 2}
+
+
+def jog_target(T: pin.SE3, axis: str, delta: float) -> pin.SE3:
+    """Apply a base-frame increment (m or rad) to a TCP pose."""
+    R, p = T.rotation.copy(), T.translation.copy()
+    if axis in LINEAR_AXES:
+        p[LINEAR_AXES[axis]] += delta
+    elif axis in ROT_AXES:
+        w = np.zeros(3)
+        w[ROT_AXES[axis]] = delta
+        R = pin.exp3(w) @ R  # rotate about the fixed base axis, TCP position kept
+    else:
+        raise ValueError(f"unknown axis {axis!r}")
+    return pin.SE3(R, p)
 
 
 def pose_si_to_se3(pose: np.ndarray) -> pin.SE3:

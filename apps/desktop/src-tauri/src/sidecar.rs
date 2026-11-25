@@ -37,6 +37,16 @@ struct Inner {
 #[derive(Clone, Default)]
 pub struct Engine(Arc<(Mutex<Inner>, Condvar)>);
 
+#[cfg(windows)]
+fn hide_window(cmd: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    cmd.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn hide_window(_cmd: &mut Command) {}
+
 /// Command used to start the engine.
 /// 1. `UGCLIENT_CORE_CMD` (whitespace separated, e.g. `.venv/bin/python -m ugclient_core`) for development;
 /// 2. the bundled PyInstaller onedir build in the resource dir.
@@ -106,6 +116,7 @@ impl Engine {
 
     fn spawn_once(&self, app: &AppHandle) -> Result<Child, String> {
         let mut cmd = engine_command(app)?;
+        hide_window(&mut cmd);
         cmd.stdout(Stdio::piped())
             .stderr(Stdio::inherit())
             .stdin(Stdio::null());
@@ -167,9 +178,12 @@ fn kill_pid(pid: u32) {
     #[cfg(unix)]
     let _ = Command::new("kill").arg(pid.to_string()).status();
     #[cfg(windows)]
-    let _ = Command::new("taskkill")
-        .args(["/PID", &pid.to_string(), "/T", "/F"])
-        .status();
+    {
+        let mut cmd = Command::new("taskkill");
+        cmd.args(["/PID", &pid.to_string(), "/T", "/F"]);
+        hide_window(&mut cmd);
+        let _ = cmd.status();
+    }
 }
 
 #[cfg(test)]

@@ -1,10 +1,12 @@
-// User settings (Settings dialog & persisted jog speed), persisted to localStorage.
+// User settings (Settings dialog, persisted jog speed & default real-robot IP), persisted to localStorage.
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { MOTION, sanitizeSpeedPct, sanitizeStep } from '../lib/motion'
 import { normalizeBoundary, type Boundary } from '../lib/boundary'
 
 export const SETTINGS_KEY = 'ugclient.settings'
+export const DEFAULT_REAL_IP = '192.168.1.60'
+export const REAL_DEFAULT_SPEED_PCT = 20
 
 export interface SessionConfig {
   robot: string
@@ -22,6 +24,7 @@ interface Stored {
   defaultRobot?: string
   restoreSession?: boolean
   session?: SessionConfig | null
+  realIp?: string
 }
 
 function read(): Stored {
@@ -30,6 +33,12 @@ function read(): Stored {
   } catch {
     return {}
   }
+}
+
+function sanitizeIp(v: unknown, fallback = DEFAULT_REAL_IP): string {
+  if (typeof v !== 'string') return fallback
+  const trimmed = v.trim()
+  return trimmed && !/\s/.test(trimmed) ? trimmed : fallback
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -41,12 +50,14 @@ export const useSettingsStore = defineStore('settings', () => {
   const defaultRobot = ref(s.defaultRobot ?? 'uf850')
   const restoreSession = ref(s.restoreSession ?? false)
   const session = ref<SessionConfig | null>(s.session ?? null)
+  const realIp = ref(sanitizeIp(s.realIp, DEFAULT_REAL_IP))
 
   function save() {
     const data: Stored = {
       stepMm: stepMm.value, stepDeg: stepDeg.value, speedPct: speedPct.value,
       boundaries: boundaries.value, defaultRobot: defaultRobot.value,
       restoreSession: restoreSession.value, session: session.value,
+      realIp: realIp.value,
     }
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(data))
@@ -54,7 +65,7 @@ export const useSettingsStore = defineStore('settings', () => {
       /* keep UI functional when localStorage is unavailable */
     }
   }
-  watch([stepMm, stepDeg, speedPct, boundaries, defaultRobot, restoreSession, session], save, { deep: true })
+  watch([stepMm, stepDeg, speedPct, boundaries, defaultRobot, restoreSession, session, realIp], save, { deep: true })
 
   function setStepMm(v: unknown) {
     stepMm.value = sanitizeStep(v, MOTION.stepMmRange, stepMm.value)
@@ -65,6 +76,9 @@ export const useSettingsStore = defineStore('settings', () => {
   function setSpeedPct(v: unknown) {
     const n = Number(v)
     if (Number.isFinite(n)) speedPct.value = Math.min(100, Math.max(1, Math.round(n)))
+  }
+  function setRealIp(v: unknown) {
+    realIp.value = sanitizeIp(v, realIp.value)
   }
 
   /** Effective boundary for a model: stored values clamped inside the model's joint limits. */
@@ -81,7 +95,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   return {
-    stepMm, stepDeg, speedPct, boundaries, defaultRobot, restoreSession, session,
-    setStepMm, setStepDeg, setSpeedPct, boundaryFor, setBoundary, resetBoundary, save,
+    stepMm, stepDeg, speedPct, boundaries, defaultRobot, restoreSession, session, realIp,
+    setStepMm, setStepDeg, setSpeedPct, setRealIp, boundaryFor, setBoundary, resetBoundary, save,
   }
 })

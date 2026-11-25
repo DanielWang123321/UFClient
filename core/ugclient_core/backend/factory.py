@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 import pinocchio as pin
 
@@ -31,5 +32,5 @@ class Backends:
 
 
 def create(info: RobotInfo) -> Backends:
-    model = pin.buildModelFromUrdf(info.urdf_path)
+    model = pin.buildModelFromXML(Path(info.urdf_path).read_text(encoding="utf-8"))
     return Backends(info=info, kin=PinocchioKinematics(model, info.ee_link), dyn=PinocchioDynamics(model, info.ee_link))

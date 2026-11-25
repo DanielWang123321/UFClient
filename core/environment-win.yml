@@ -1,0 +1,15 @@
+name: ugclient-win
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.12
+  - pinocchio=4.0.0
+  - libblas=*=*openblas
+  - numpy>=1.26
+  - pyyaml>=6
+  - packaging>=24
+  - websockets>=13,<18
+  - pytest>=8
+  - pyinstaller>=6.10
+  - pyinstaller-hooks-contrib

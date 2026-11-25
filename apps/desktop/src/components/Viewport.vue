@@ -5,14 +5,16 @@ import { markRaw, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { SceneController } from '../three/SceneController'
 import { robotDisplayName, useRobotStore } from '../stores/robot'
 import { useMotionStore } from '../stores/motion'
+import { useRealStore } from '../stores/real'
 import StageTelemetry from './StageTelemetry.vue'
 import StageNotices from './StageNotices.vue'
 
 const robot = useRobotStore()
 const motion = useMotionStore()
+const real = useRealStore()
 const host = ref<HTMLDivElement>()
 const state = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
-const show = ref({ base: true, tcp: true, com: true })
+const show = ref({ base: true, tcp: true })
 let ctl: SceneController | null = null
 
 function load() {
@@ -39,10 +41,8 @@ onMounted(() => {
     if (ok && ctl && robot.info) {
       ctl.setJoints(robot.info.joint_names, robot.q)
       ctl.setTcp(robot.tcpOffset)
-      ctl.setPayload(robot.payload.mass_kg, robot.payload.com_mm)
       ctl.setVisible('base', show.value.base)
       ctl.setVisible('tcp', show.value.tcp)
-      ctl.setVisible('com', show.value.com)
     }
   }
   ;(window as unknown as { __ugclientScene?: SceneController }).__ugclientScene = ctl
@@ -60,11 +60,9 @@ watch(
   (q) => robot.info && ctl?.setJoints(robot.info.joint_names, q),
 )
 watch(() => robot.tcpOffset, (o) => ctl?.setTcp(o))
-watch(() => robot.payload, (p) => ctl?.setPayload(p.mass_kg, p.com_mm))
 watch(show, (s) => {
   ctl?.setVisible('base', s.base)
   ctl?.setVisible('tcp', s.tcp)
-  ctl?.setVisible('com', s.com)
 }, { deep: true })
 </script>
 
@@ -76,7 +74,8 @@ watch(show, (s) => {
       <div class="robot-models">
         <label class="visually-hidden" for="robot-select">{{ $t('robot.model') }}</label>
         <select
-          id="robot-select" :value="robot.key" :disabled="robot.robots.length === 0"
+          id="robot-select" :value="robot.key" :disabled="robot.robots.length === 0 || real.connected"
+          :title="real.connected ? $t('robot.lockedReal') : undefined"
           data-test="robot-select" @change="onSelectModel"
         >
           <option v-if="robot.robots.length === 0" :value="robot.key">{{ robotDisplayName(robot.key) }}</option>
@@ -125,17 +124,6 @@ watch(show, (s) => {
             <circle cx="9" cy="6.8" r="1.25" fill="currentColor" />
           </svg>
           <span>{{ $t('view.tcp') }}</span>
-        </button>
-
-        <button
-          type="button" class="stage-btn" :aria-pressed="show.com"
-          data-test="view-com" @click="show.com = !show.com"
-        >
-          <svg class="axes-icon" viewBox="0 0 18 18" width="16" height="16" aria-hidden="true">
-            <circle cx="9" cy="7" r="3.4" fill="#f59e0b" fill-opacity="0.28" stroke="#d97706" stroke-width="1.4" />
-            <path d="M9 10.6v5.2M7 13.8L9 16l2-2.2" fill="none" stroke="#d97706" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          <span>{{ $t('view.com') }}</span>
         </button>
 
         <button

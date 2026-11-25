@@ -119,7 +119,6 @@ const AX = ['X', 'Y', 'Z']
           <i>Pinocchio</i><b>{{ engine.hello?.pinocchio_version ?? '—' }}</b>
           <i>{{ $t('settings.license') }}</i><b>MIT</b>
         </div>
-        <p class="hint">{{ $t('app.personal') }}</p>
       </el-tab-pane>
     </el-tabs>
   </el-dialog>

@@ -10,7 +10,7 @@ describe('RpcClient', () => {
       return ws
     })
     const hello = await c.connect(1234, 'tok')
-    expect(hello.ufactory_genesis_commit).toBe('be49519')
+    expect(hello.ufactory_genesis_commit).toBe('b33810e')
     expect(ws.sent[0]).toMatchObject({ method: 'system.hello', params: { token: 'tok', api_version: '1.0' } })
     expect(await c.call('ping')).toBe('pong')
   })

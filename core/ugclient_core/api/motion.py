@@ -11,14 +11,13 @@ import numpy as np
 import pinocchio as pin
 
 from .. import units
-from ..backend.kin_pinocchio import pose_si_to_se3
+from ..backend.kin_pinocchio import LINEAR_AXES, pose_si_to_se3
+from ..backend.kin_pinocchio import jog_target as _jog_target_se3
 from ..errors import IK_UNREACHABLE, JOINT_LIMIT, RpcError, invalid_params
 from ..session import SessionStore
 from ._params import number
 from .kin import q_param
 
-LINEAR_AXES = {"x": 0, "y": 1, "z": 2}
-ROT_AXES = {"roll": 0, "pitch": 1, "yaw": 2}
 #: A jog increment must not make any joint jump more than this (guards against IK branch flips).
 MAX_JOINT_JUMP_DEG = 15.0
 ALIGN_TOL_DEG = 0.05
@@ -26,16 +25,10 @@ ALIGN_TOL_DEG = 0.05
 
 def jog_target(T: pin.SE3, axis: str, delta: float) -> pin.SE3:
     """Apply a base-frame increment (m or rad) to a TCP pose."""
-    R, p = T.rotation.copy(), T.translation.copy()
-    if axis in LINEAR_AXES:
-        p[LINEAR_AXES[axis]] += delta
-    elif axis in ROT_AXES:
-        w = np.zeros(3)
-        w[ROT_AXES[axis]] = delta
-        R = pin.exp3(w) @ R  # rotate about the fixed base axis, TCP position kept
-    else:
-        raise invalid_params(f"unknown axis {axis!r}")
-    return pin.SE3(R, p)
+    try:
+        return _jog_target_se3(T, axis, delta)
+    except ValueError as e:
+        raise invalid_params(str(e)) from None
 
 
 def jog_tcp(params: dict[str, Any], store: SessionStore) -> dict[str, Any]:

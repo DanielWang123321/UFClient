@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRobotStore } from '../stores/robot'
 import { useMotionStore } from '../stores/motion'
+import { useRealStore } from '../stores/real'
 import { usePressHold } from '../lib/usePressHold'
 import CartesianPad from './CartesianPad.vue'
 import JointControlList from './JointControlList.vue'
@@ -13,13 +14,20 @@ type ControlTab = 'cartesian' | 'joint'
 const { t } = useI18n()
 const robot = useRobotStore()
 const motion = useMotionStore()
+const real = useRealStore()
 const { activeId, down, up, cancel, key, abortAll } = usePressHold()
 
 const activeTab = ref<ControlTab>('cartesian')
 const collapsedTabs = reactive<Record<ControlTab, boolean>>({ cartesian: false, joint: false })
 
 const isCollapsed = computed(() => collapsedTabs[activeTab.value])
-const busy = computed(() => !robot.sessionId)
+const busy = computed(() => !robot.sessionId || (real.connected && !real.canMove))
+const realGuardHint = computed(() => {
+  if (!real.connected) return ''
+  if (real.errorCode !== 0) return t('real.errorHint', { code: real.errorCode })
+  if (!real.enabled) return t('real.needEnableHint')
+  return ''
+})
 const collapseLabel = computed(() => {
   if (activeTab.value === 'joint') {
     return t(isCollapsed.value ? 'motion.expandJoint' : 'motion.collapseJoint')
@@ -111,6 +119,16 @@ onBeforeUnmount(() => {
     </div>
 
     <div v-show="!isCollapsed" class="motion-body">
+      <div
+        v-if="realGuardHint"
+        class="real-guard-banner"
+        :class="{ fault: real.errorCode !== 0 }"
+        role="status"
+        data-test="real-guard-hint"
+      >
+        {{ realGuardHint }}
+      </div>
+
       <div v-show="!isCollapsed" id="motion-speed" class="jog-speed-box">
         <div class="jog-speed-heading">
           <span>{{ $t('motion.speed') }}</span>
@@ -218,6 +236,24 @@ onBeforeUnmount(() => {
 }
 .chevron-icon {
   display: block;
+}
+.real-guard-banner {
+  margin: 10px 18px 0;
+  padding: 7px 10px;
+  border: 1px solid #f59e0b;
+  border-left: 3px solid #d97706;
+  border-radius: 3px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.real-guard-banner.fault {
+  border-color: rgba(220, 38, 38, 0.45);
+  border-left-color: var(--uc-danger);
+  background: #fef2f2;
+  color: #991b1b;
 }
 .jog-speed-box {
   margin: 12px 18px 0;

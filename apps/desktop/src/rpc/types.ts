@@ -83,3 +83,34 @@ export interface JogResult {
   q_deg: number[]
   tcp_pose: Pose6
 }
+
+export interface RealPayload {
+  mass_kg: number
+  com_mm: [number, number, number]
+}
+
+export interface RealStatus {
+  connected: boolean
+  ip: string
+  robot_key: string
+  dof: number
+  version: string
+  sn: string
+  state: number
+  mode: number
+  error_code: number
+  warn_code: number
+  enabled: boolean
+  is_simulation_robot: boolean
+  q_deg: number[]
+  tcp_pose: number[]
+  tcp_offset: number[]
+  payload: RealPayload
+}
+
+export interface RealBoundaryParam {
+  tcp_min: (number | null)[]
+  tcp_max: (number | null)[]
+  joint_min: number[]
+  joint_max: number[]
+}

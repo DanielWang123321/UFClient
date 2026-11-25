@@ -5,11 +5,12 @@ from __future__ import annotations
 import json
 import logging
 import secrets
+import threading
 from collections.abc import Callable
 from typing import Any
 
 from . import API_VERSION, __version__
-from .api import dyn, kin, motion, robot
+from .api import dyn, kin, motion, real, robot
 from .backend import factory
 from .errors import (
     API_VERSION_MISMATCH,
@@ -41,6 +42,19 @@ METHODS: dict[str, Handler] = {
     "check.pose": dyn.check_pose,
     "motion.jog_tcp": motion.jog_tcp,
     "motion.align": motion.align,
+    "real.connect": real.real_connect,
+    "real.disconnect": real.real_disconnect,
+    "real.status": real.real_status,
+    "real.enable": real.real_enable,
+    "real.clear_error": real.real_clear_error,
+    "real.stop": real.real_stop,
+    "real.step_joint": real.real_step_joint,
+    "real.step_tcp": real.real_step_tcp,
+    "real.move_joints": real.real_move_joints,
+    "real.jog_joint_vel": real.real_jog_joint_vel,
+    "real.jog_tcp_vel": real.real_jog_tcp_vel,
+    "real.set_tcp": real.real_set_tcp,
+    "real.set_payload": real.real_set_payload,
 }
 
 
@@ -52,7 +66,7 @@ def hello_info() -> dict[str, Any]:
         "core_version": __version__,
         **factory.catalog().versions(),
         "pinocchio_version": pinocchio.__version__,
-        "capabilities": ["kin", "dyn"],
+        "capabilities": ["kin", "dyn", "real"],
         "backend": dict(factory.BACKEND_NAMES),
     }
 
@@ -65,6 +79,7 @@ class Connection:
         self.store = store
         self.authed = False
         self.on_shutdown = on_shutdown
+        self._sim_lock = threading.RLock()
 
     def _call(self, method: str, params: dict[str, Any]) -> Any:
         if method == "system.hello":
@@ -86,7 +101,10 @@ class Connection:
         fn = METHODS.get(method)
         if fn is None:
             raise RpcError(METHOD_NOT_FOUND, f"method not found: {method}")
-        return fn(params, self.store)
+        if method.startswith("real."):
+            return fn(params, self.store)
+        with self._sim_lock:
+            return fn(params, self.store)
 
     def handle_obj(self, req: Any) -> dict[str, Any] | None:
         rid = req.get("id") if isinstance(req, dict) else None

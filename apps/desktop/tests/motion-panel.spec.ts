@@ -156,4 +156,29 @@ describe('MotionPanel & StageNotices', () => {
     expect(motion.notice).toBeNull()
     expect(wrapper.find('[data-test="motion-notice"]').exists()).toBe(false)
   })
+
+  it('first press-and-hold from initial ready state starts continuous motion without self-aborting', async () => {
+    vi.useFakeTimers()
+    try {
+      const wrapper = mount(MotionPanel, { attachTo: document.body, global: { plugins: [i18n] } })
+      const motion = useMotionStore()
+      expect(motion.state).toBe(STATE.ready)
+
+      const startSpy = vi.spyOn(motion, 'startContinuous').mockImplementation(async () => {
+        motion.state = STATE.moving
+      })
+      const btn = wrapper.find('[data-test="x+"]')
+      await btn.trigger('pointerdown', { button: 0, pointerType: 'mouse', pointerId: 1 })
+      vi.advanceTimersByTime(230)
+      await flushPromises()
+      expect(startSpy).toHaveBeenCalledTimes(1)
+      expect(startSpy).toHaveBeenCalledWith({ kind: 'tcp', axis: 'x' }, 1)
+
+      await btn.trigger('pointerup', { button: 0, pointerType: 'mouse', pointerId: 1 })
+      expect(motion.state).toBe(STATE.stopped)
+      wrapper.unmount()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

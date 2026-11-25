@@ -1,20 +1,24 @@
 <script setup lang="ts">
-// Slim 48px workspace header: branding + personal-project badge, sim/engine status, STOP, Settings, language.
+// Slim 48px workspace header: branding, real-robot & engine status, STOP, Settings, language.
 import { computed, inject, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEngineStore } from '../stores/engine'
 import { useMotionStore } from '../stores/motion'
+import { useRealStore } from '../stores/real'
 import { STATE } from '../lib/motion'
 import SettingsDialog from './SettingsDialog.vue'
+import RealRobotControl from './RealRobotControl.vue'
 
 const { locale } = useI18n()
 const engine = useEngineStore()
 const motion = useMotionStore()
+const real = useRealStore()
 const showSettings = ref(false)
 const retry = inject<() => void>('engine.retry', () => {})
 
+const effectiveState = computed(() => (real.connected ? real.state : motion.state))
 const stateKey = computed(() =>
-  motion.state === STATE.moving ? 'moving' : motion.state === STATE.stopped ? 'stopped' : 'ready',
+  effectiveState.value === STATE.moving ? 'moving' : effectiveState.value === STATE.ready ? 'ready' : 'stopped',
 )
 
 function openSettings() {
@@ -27,16 +31,17 @@ function openSettings() {
   <header class="app-header">
     <div class="header-left">
       <span class="brand-title">{{ $t('app.title') }}</span>
-      <span class="personal-badge">{{ $t('app.personal') }}</span>
       <nav class="header-nav" aria-label="Workspace">
         <slot name="nav" />
       </nav>
     </div>
 
     <div class="header-right">
+      <RealRobotControl />
+
       <div class="sim-pill" :class="stateKey">
         <span class="sim-dot" />
-        <span data-test="sim-state">{{ $t(`info.${stateKey}`) }} ({{ motion.state }})</span>
+        <span data-test="sim-state">{{ $t(`info.${stateKey}`) }} ({{ effectiveState }})</span>
       </div>
 
       <div
@@ -91,17 +96,6 @@ function openSettings() {
   letter-spacing: -0.02em;
   color: var(--uc-ink-strong);
   white-space: nowrap;
-}
-.personal-badge {
-  font-size: 11px;
-  color: var(--uc-ink-muted);
-  background: var(--uc-surface-muted);
-  border: 1px solid var(--uc-border);
-  border-radius: 3px;
-  padding: 2px 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .header-nav {
   display: flex;
@@ -200,11 +194,6 @@ function openSettings() {
 .lang-seg button.on {
   background: var(--uc-active-bg);
   color: #fff;
-}
-@media (max-width: 980px) {
-  .personal-badge {
-    display: none;
-  }
 }
 @media (max-width: 720px) {
   .engine-pill {

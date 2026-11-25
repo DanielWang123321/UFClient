@@ -1,4 +1,5 @@
 import { CLIENT_API_VERSION, type HelloResult, type RpcErrorObject } from './types'
+import pkg from '../../package.json'
 
 export class RpcError extends Error {
   constructor(
@@ -44,7 +45,7 @@ export class RpcClient {
     const hello = await this.call<HelloResult>('system.hello', {
       token,
       api_version: CLIENT_API_VERSION,
-      client_version: '0.1.1',
+      client_version: pkg.version,
     })
     if (hello.api_version.split('.')[0] !== CLIENT_API_VERSION.split('.')[0]) {
       this.close()

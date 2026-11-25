@@ -19,7 +19,7 @@ export function usePressHold() {
       h = new PressHold({
         onClick: cbs.onClick,
         onHoldStart: cbs.onHoldStart,
-        onHoldEnd: () => motion.stop(),
+        onHoldEnd: () => motion.stop({ decel: true }),
       })
       holders.set(id, h)
     }
@@ -31,11 +31,20 @@ export function usePressHold() {
     for (const h of holders.values()) h.abort()
   }
 
+  let selfStopping = false
+
   function down(e: PointerEvent, id: string, cbs: JogCallbacks, disabled = false) {
     if (disabled || (e.pointerType === 'mouse' && e.button !== 0)) return
     e.preventDefault()
     abortAll()
-    motion.stop()
+    if (motion.state === STATE.moving) {
+      selfStopping = true
+      try {
+        motion.stop()
+      } finally {
+        selfStopping = false
+      }
+    }
     const el = e.currentTarget as HTMLElement | null
     el?.focus?.({ preventScroll: true })
     try {
@@ -65,7 +74,7 @@ export function usePressHold() {
     const h = holders.get(id)
     const wasHolding = h?.isActive() ?? false
     h?.cancel()
-    if (wasHolding) motion.stop()
+    if (wasHolding) motion.stop({ decel: true })
   }
 
   function key(e: KeyboardEvent, id: string, onClick: () => void, disabled = false) {
@@ -81,8 +90,9 @@ export function usePressHold() {
   watch(
     () => motion.state,
     (s) => {
-      if (s === STATE.stopped) abortAll()
+      if (s === STATE.stopped && !selfStopping) abortAll()
     },
+    { flush: 'sync' },
   )
 
   onBeforeUnmount(() => {

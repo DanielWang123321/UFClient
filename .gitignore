@@ -16,3 +16,8 @@ apps/desktop/public/draco/
 # Rust
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/schemas/
+
+# dev
+AGENTS.md
+prd.md
+worklog.md

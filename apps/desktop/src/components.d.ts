@@ -29,6 +29,7 @@ declare module 'vue' {
     JointControlList: typeof import('./components/JointControlList.vue')['default']
     MotionPanel: typeof import('./components/MotionPanel.vue')['default']
     PayloadPanel: typeof import('./components/PayloadPanel.vue')['default']
+    RealRobotControl: typeof import('./components/RealRobotControl.vue')['default']
     RobotPanel: typeof import('./components/RobotPanel.vue')['default']
     SettingsDialog: typeof import('./components/SettingsDialog.vue')['default']
     StageNotices: typeof import('./components/StageNotices.vue')['default']

@@ -27,9 +27,9 @@ describe('motion helpers', () => {
     expect(stepSize({ kind: 'tcp', axis: 'yaw' })).toBe(1)
     expect(stepSize({ kind: 'joint', index: 2 })).toBe(1)
 
-    expect(rate({ kind: 'tcp', axis: 'z' }, 1)).toBeCloseTo(2.5)
-    expect(rate({ kind: 'tcp', axis: 'z' }, 50)).toBeCloseTo(125)
-    expect(rate({ kind: 'tcp', axis: 'z' }, 100)).toBeCloseTo(250)
+    expect(rate({ kind: 'tcp', axis: 'z' }, 1)).toBeCloseTo(2.3)
+    expect(rate({ kind: 'tcp', axis: 'z' }, 50)).toBeCloseTo(115)
+    expect(rate({ kind: 'tcp', axis: 'z' }, 100)).toBeCloseTo(230)
 
     expect(rate({ kind: 'tcp', axis: 'roll' }, 1)).toBeCloseTo(1)
     expect(rate({ kind: 'tcp', axis: 'roll' }, 100)).toBeCloseTo(40)

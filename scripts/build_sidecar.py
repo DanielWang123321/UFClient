@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Build the ugclient-core sidecar with PyInstaller (--onedir) into dist-sidecar/ugclient-core/,
-then smoke-test it: handshake, token auth and the U1 golden case over WebSocket."""
+then smoke-test it: handshake, token auth, U1 golden case, end effectors, and real status over WebSocket."""
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -16,6 +17,34 @@ DIST = ROOT / "dist-sidecar"
 EXE = DIST / "ugclient-core" / ("ugclient-core.exe" if sys.platform == "win32" else "ugclient-core")
 
 
+def _smoke_env() -> dict[str, str]:
+    """Return an isolated runtime env on Windows so the frozen bundle cannot rely on host conda DLLs."""
+    env = os.environ.copy()
+    if sys.platform != "win32":
+        return env
+    prefixes = [
+        Path(p).resolve()
+        for p in (sys.prefix, sys.base_prefix, os.environ.get("CONDA_PREFIX", ""))
+        if p
+    ]
+    kept: list[str] = []
+    for entry in env.get("PATH", "").split(os.pathsep):
+        if not entry:
+            continue
+        try:
+            ep = Path(entry).resolve()
+        except OSError:
+            kept.append(entry)
+            continue
+        if any(ep == pre or pre in ep.parents for pre in prefixes):
+            continue
+        kept.append(entry)
+    env["PATH"] = os.pathsep.join(kept)
+    for k in ("CONDA_PREFIX", "CONDA_DEFAULT_ENV", "PYTHONPATH"):
+        env.pop(k, None)
+    return env
+
+
 def build() -> None:
     EXTRA.mkdir(parents=True, exist_ok=True)
     commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=UFG, capture_output=True, text=True, check=True)
@@ -24,8 +53,18 @@ def build() -> None:
 
     (EXTRA / "UFG_VERSION").write_text(metadata.version("genesis-ufactory") + "\n")
     subprocess.run(
-        [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--distpath", str(DIST),
-         "--workpath", str(ROOT / "build" / "pyinstaller"), str(ROOT / "core" / "ugclient-core.spec")],
+        [
+            sys.executable,
+            "-m",
+            "PyInstaller",
+            "--noconfirm",
+            "--clean",
+            "--distpath",
+            str(DIST),
+            "--workpath",
+            str(ROOT / "build" / "pyinstaller"),
+            str(ROOT / "core" / "ugclient-core.spec"),
+        ],
         check=True,
     )
 
@@ -34,9 +73,13 @@ def smoke() -> None:
     from websockets.sync.client import connect
 
     golden = json.loads((ROOT / "core" / "tests" / "golden" / "uf850_case_a.json").read_text(encoding="utf-8"))
-    p = subprocess.Popen([str(EXE)], stdout=subprocess.PIPE, text=True)
+    p = subprocess.Popen([str(EXE)], stdout=subprocess.PIPE, text=True, env=_smoke_env())
     try:
-        hs = json.loads(p.stdout.readline())
+        hs_raw = p.stdout.readline() if p.stdout else ""
+        if not hs_raw.strip():
+            rc = p.poll()
+            raise RuntimeError(f"sidecar exited before printing handshake (returncode={rc})")
+        hs = json.loads(hs_raw)
         n = 0
 
         def call(ws, method, **params):
@@ -62,12 +105,21 @@ def smoke() -> None:
                 assert abs(got - exp) <= golden["tolerance"]["tau_nm"] + 5e-4, (tau, golden["expected"]["tau_nm"])
             for key in ("xarm5_1305", "xarm6_1305", "xarm7_1305", "lite6"):
                 call(ws, "robot.load", robot=key)
+            for key, ee in (("uf850", "gripper_g2"), ("lite6", "lite6_gripper")):
+                ee_info = call(ws, "robot.load", robot=key, end_effector=ee)
+                assert ee_info["end_effector"] == ee and ee_info["default_tcp_offset"][2] > 0
+            real_stat = call(ws, "real.status")
+            assert real_stat["connected"] is False
             call(ws, "system.shutdown")
         p.wait(timeout=20)
-        size = sum(f.stat().st_size for f in EXE.parent.rglob("*") if f.is_file())
-        print(f"sidecar smoke test OK; onedir size {size / 1e6:.1f} MB")
+        files = [f for f in EXE.parent.rglob("*") if f.is_file()]
+        size = sum(f.stat().st_size for f in files)
+        n_libs = sum(1 for f in files if f.suffix.lower() in {".dll", ".so"} or ".so." in f.name)
+        print(f"sidecar smoke test OK; onedir size {size / 1e6:.1f} MB ({len(files)} files, {n_libs} native libs)")
     finally:
-        p.kill()
+        if p.poll() is None:
+            p.kill()
+            p.wait(timeout=5)
 
 
 if __name__ == "__main__":

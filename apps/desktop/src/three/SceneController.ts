@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
 import URDFLoader, { type URDFRobot } from 'urdf-loader'
 
 export /** Camera distance factor for the robot framing (smaller = closer). */
@@ -70,13 +71,6 @@ export class SceneController {
   private eeLink = 'link6'
   private tcpAxes = makeAxes(0.1, 0.0022)
   private baseAxes = makeAxes(0.14, 0.0026)
-  private com = new THREE.Mesh(
-    new THREE.SphereGeometry(1, 20, 14),
-    new THREE.MeshStandardMaterial({ color: 0xff9f1c, emissive: 0x442200 }),
-  )
-  private gravityArrow = new THREE.ArrowHelper(new THREE.Vector3(0, 0, -1), new THREE.Vector3(), 0.1, 0xff9f1c)
-  private comUserVisible = true
-  private hasPayload = false
   private renderRequested = false
   private resizeObs: ResizeObserver | null = null
   private draco: DRACOLoader
@@ -132,8 +126,6 @@ export class SceneController {
     this.scene.add(grid)
 
     this.scene.add(this.baseAxes)
-    this.com.visible = false
-    this.gravityArrow.visible = false
 
     this.draco = new DRACOLoader()
     this.draco.setDecoderPath('draco/')
@@ -171,7 +163,7 @@ export class SceneController {
     this.eeLink = eeLink
     const seq = ++this.loadSeq
     if (this.robot) {
-      for (const o of [this.tcpAxes, this.com, this.gravityArrow]) o.removeFromParent()
+      this.tcpAxes.removeFromParent()
       this.scene.remove(this.robot)
       this.disposeObject(this.robot)
       this.robot = null
@@ -181,7 +173,29 @@ export class SceneController {
     const loader = new URDFLoader(manager)
     const gltf = new GLTFLoader(manager)
     gltf.setDRACOLoader(this.draco)
-    loader.loadMeshCb = (path, _m, _material, done) => {
+    const stl = new STLLoader(manager)
+    loader.loadMeshCb = (path, _m, material, done) => {
+      if (path.toLowerCase().endsWith('.stl')) {
+        stl.load(
+          path,
+          (geom) => {
+            const mat =
+              material && !Array.isArray(material)
+                ? material
+                : new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.55, metalness: 0.2 })
+            const mesh = new THREE.Mesh(geom, mat)
+            mesh.castShadow = true
+            mesh.receiveShadow = true
+            done(mesh)
+          },
+          undefined,
+          (err) => {
+            failed = path
+            done(null as unknown as THREE.Object3D, err as Error)
+          },
+        )
+        return
+      }
       gltf.load(
         path,
         (g) => {
@@ -210,8 +224,6 @@ export class SceneController {
       const ee = robot.links[this.eeLink]
       if (ee) {
         ee.add(this.tcpAxes)
-        ee.add(this.com)
-        ee.add(this.gravityArrow)
       }
       this.requestRender()
       if (failed) this.onLoaded(false, new Error(`failed to load ${failed}`))
@@ -228,7 +240,6 @@ export class SceneController {
   setJoints(names: string[], qDeg: number[]) {
     if (!this.robot) return
     names.forEach((n, i) => this.robot!.setJointValue(n, THREE.MathUtils.degToRad(qDeg[i] ?? 0)))
-    this.updateGravityArrow()
     this.requestRender()
   }
 
@@ -238,41 +249,13 @@ export class SceneController {
     this.requestRender()
   }
 
-  setPayload(massKg: number, comMm: number[]) {
-    this.hasPayload = massKg > 0
-    const show = this.hasPayload && this.comUserVisible
-    this.com.visible = show
-    this.gravityArrow.visible = show
-    const r = 0.012 * Math.cbrt(Math.max(massKg, 0.01))
-    this.com.scale.setScalar(r)
-    this.com.position.set(comMm[0] / 1000, comMm[1] / 1000, comMm[2] / 1000)
-    this.gravityArrow.position.copy(this.com.position)
-    this.gravityArrow.setLength(Math.max(0.03, 0.02 * massKg), 0.02, 0.012)
-    this.updateGravityArrow()
-    this.requestRender()
-  }
-
-  setVisible(what: 'base' | 'tcp' | 'com', on: boolean) {
+  setVisible(what: 'base' | 'tcp', on: boolean) {
     if (what === 'base') {
       this.baseAxes.visible = on
-    } else if (what === 'tcp') {
-      this.tcpAxes.visible = on
     } else {
-      this.comUserVisible = on
-      const show = this.hasPayload && on
-      this.com.visible = show
-      this.gravityArrow.visible = show
+      this.tcpAxes.visible = on
     }
     this.requestRender()
-  }
-
-  private updateGravityArrow() {
-    const parent = this.gravityArrow.parent
-    if (!parent) return
-    parent.updateWorldMatrix(true, false)
-    const inv = new THREE.Quaternion()
-    parent.getWorldQuaternion(inv).invert()
-    this.gravityArrow.setDirection(new THREE.Vector3(0, 0, -1).applyQuaternion(inv))
   }
 
   requestRender() {

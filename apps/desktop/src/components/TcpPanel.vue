@@ -2,9 +2,11 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRobotStore } from '../stores/robot'
+import { useRealStore } from '../stores/real'
 import { fmt } from '../lib/units'
 
 const robot = useRobotStore()
+const real = useRealStore()
 const open = ref(false)
 const labels = ['x', 'y', 'z', 'r', 'p', 'y']
 const draft = ref<number[]>([...robot.tcpOffset])
@@ -29,6 +31,17 @@ const summary = computed(() => {
   if (o.every((v) => Math.abs(v) < 0.005)) return t('tcp.summaryNone')
   return `${fmt(o[0], 1)}, ${fmt(o[1], 1)}, ${fmt(o[2], 1)} mm`
 })
+
+async function onApply() {
+  if (!real.connected) {
+    await robot.applyTcp(draft.value)
+    return
+  }
+  if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+    if (!window.confirm(t('tcp.confirmReal'))) return
+  }
+  await real.writeTcp(draft.value)
+}
 </script>
 
 <template>
@@ -52,7 +65,7 @@ const summary = computed(() => {
       </div>
       <div class="row">
         <span class="hint">{{ $t('tcp.hint') }}</span>
-        <el-button size="small" type="primary" plain @click="robot.applyTcp(draft)">{{ $t('tcp.apply') }}</el-button>
+        <el-button size="small" type="primary" plain @click="onApply">{{ $t('tcp.apply') }}</el-button>
       </div>
     </div>
   </section>

@@ -416,6 +416,268 @@
           "q_deg"
         ]
       }
+    },
+    "real.connect": {
+      "description": "Connect to a physical UFACTORY controller, verify (axis, device_type), and read live motor enable state.",
+      "params": {
+        "type": "object",
+        "properties": {
+          "ip": {
+            "type": "string",
+            "default": "192.168.1.60"
+          },
+          "robot": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": []
+      }
+    },
+    "real.disconnect": {
+      "description": "Stop active motion and disconnect from the physical controller.",
+      "params": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    "real.status": {
+      "description": "Return the latest physical controller snapshot.",
+      "params": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    "real.enable": {
+      "description": "Explicitly enable or disable physical robot motion. Refuses if error_code != 0.",
+      "params": {
+        "type": "object",
+        "properties": {
+          "enable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enable"
+        ]
+      }
+    },
+    "real.clear_error": {
+      "description": "Explicit user-triggered clean_warn + clean_error on the physical controller.",
+      "params": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    "real.stop": {
+      "description": "Fast-path stop (set_state(6) deceleration stop when decel=true, set_state(4) immediate stop by default, or emergency_stop when emergency=true).",
+      "params": {
+        "type": "object",
+        "properties": {
+          "emergency": {
+            "type": "boolean"
+          },
+          "decel": {
+            "type": "boolean"
+          }
+        },
+        "required": []
+      }
+    },
+    "real.step_joint": {
+      "description": "Single-click joint step in Mode 0 with safety boundary pre-check.",
+      "params": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "delta_deg": {
+            "type": "number"
+          },
+          "speed_dps": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "boundary": {
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "index",
+          "delta_deg"
+        ]
+      }
+    },
+    "real.step_tcp": {
+      "description": "Single-click base-frame TCP step in Mode 0 with safety boundary pre-check.",
+      "params": {
+        "type": "object",
+        "properties": {
+          "axis": {
+            "enum": [
+              "x",
+              "y",
+              "z",
+              "roll",
+              "pitch",
+              "yaw"
+            ]
+          },
+          "delta": {
+            "type": "number"
+          },
+          "speed_mms": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "boundary": {
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "axis",
+          "delta"
+        ]
+      }
+    },
+    "real.move_joints": {
+      "description": "Move physical arm joints toward a target configuration in Mode 0 (Home / Align).",
+      "params": {
+        "type": "object",
+        "properties": {
+          "q_deg": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "speed_dps": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "boundary": {
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "q_deg"
+        ]
+      }
+    },
+    "real.jog_joint_vel": {
+      "description": "Continuous joint velocity jog in Mode 4 with hardware duration and sidecar watchdog.",
+      "params": {
+        "type": "object",
+        "properties": {
+          "speeds_dps": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "duration_s": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "boundary": {
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "speeds_dps"
+        ]
+      }
+    },
+    "real.jog_tcp_vel": {
+      "description": "Continuous base-frame TCP velocity jog in Mode 5 with hardware duration and sidecar watchdog.",
+      "params": {
+        "type": "object",
+        "properties": {
+          "speeds": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 6,
+            "maxItems": 6
+          },
+          "duration_s": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "boundary": {
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "speeds"
+        ]
+      }
+    },
+    "real.set_tcp": {
+      "description": "Write TCP offset [x,y,z mm, r,p,y deg] to the physical controller while stationary.",
+      "params": {
+        "type": "object",
+        "properties": {
+          "offset": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 6,
+            "maxItems": 6
+          }
+        },
+        "required": [
+          "offset"
+        ]
+      }
+    },
+    "real.set_payload": {
+      "description": "Write payload mass (kg) and flange-frame COM (mm) to the physical controller while stationary.",
+      "params": {
+        "type": "object",
+        "properties": {
+          "mass_kg": {
+            "type": "number",
+            "minimum": 0
+          },
+          "com_mm": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          }
+        },
+        "required": [
+          "mass_kg",
+          "com_mm"
+        ]
+      }
     }
   },
   "errors": {
@@ -430,6 +692,12 @@
     "3003": "JOINT_LIMIT",
     "3004": "SINGULAR",
     "4001": "JOB_CANCELLED",
-    "5001": "BACKEND_UNAVAILABLE"
+    "5001": "BACKEND_UNAVAILABLE",
+    "6001": "REAL_NOT_CONNECTED",
+    "6002": "REAL_CONNECT_FAILED",
+    "6003": "REAL_MODEL_MISMATCH",
+    "6004": "REAL_CONTROLLER_ERROR",
+    "6005": "REAL_MOTION_REJECTED",
+    "6006": "REAL_SDK_UNAVAILABLE"
   }
 }

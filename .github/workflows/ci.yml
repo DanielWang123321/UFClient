@@ -37,26 +37,24 @@ jobs:
         run: python -m pytest -q
 
   core-windows:
-    # PyPI has no Windows wheel for pin==4.0.0 (design doc risk R3), so this job takes
-    # Pinocchio from conda-forge. Experimental until the M5 Windows milestone.
-    name: Sidecar tests (Windows, experimental)
+    # PyPI has no Windows wheel for pin==4.0.0 (design doc risk R3), so Pinocchio comes from conda-forge.
+    name: Sidecar tests (Windows)
     runs-on: windows-latest
-    continue-on-error: true
     defaults:
       run:
         shell: bash -el {0}
     steps:
       - uses: actions/checkout@v4
-      - uses: conda-incubator/setup-miniconda@v3
+      - uses: mamba-org/setup-micromamba@v3
         with:
-          miniforge-version: latest
-          python-version: ${{ env.PYTHON_VERSION }}
-          channels: conda-forge
+          environment-file: core/environment-win.yml
+          environment-name: ugclient-win
+          init-shell: bash
+          cache-environment: true
       - name: Install
         run: |
-          conda install -y pinocchio=4.0.0 numpy pyyaml "websockets>=13,<16" pytest
           python scripts/fetch_ufg.py
-          python -m pip install --no-deps -e third_party/ufactory_genesis -e core
+          python -m pip install --no-deps "xarm-python-sdk>=1.14" -e third_party/ufactory_genesis -e core
       - name: Tests (incl. U1 golden case)
         working-directory: core
         run: python -m pytest -q
@@ -90,14 +88,19 @@ jobs:
         if: runner.os == 'Linux'
 
   shell:
-    name: Tauri shell (Rust)
-    runs-on: ubuntu-22.04
+    name: Tauri shell (Rust, ${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: apps/desktop/src-tauri
     steps:
       - uses: actions/checkout@v4
       - name: System dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libxdo-dev
@@ -108,6 +111,7 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri
       - name: Placeholder frontend dist
+        shell: bash
         run: mkdir -p ../dist && echo '<!doctype html>' > ../dist/index.html
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
@@ -149,7 +153,7 @@ jobs:
         working-directory: apps/desktop
         run: |
           pnpm install --frozen-lockfile
-          pnpm tauri build --config src-tauri/tauri.bundle.conf.json
+          pnpm tauri build --bundles deb --config src-tauri/tauri.bundle.conf.json
       - name: Sizes and checksums
         run: |
           cd apps/desktop/src-tauri/target/release/bundle
@@ -160,5 +164,56 @@ jobs:
           name: ugclient-linux-x64
           path: |
             apps/desktop/src-tauri/target/release/bundle/deb/*.deb
+            apps/desktop/src-tauri/target/release/bundle/SHA256SUMS.txt
+          if-no-files-found: error
+
+  package-windows:
+    name: Package Windows (NSIS exe)
+    needs: [core-windows, frontend, shell]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: core/environment-win.yml
+          environment-name: ugclient-win
+          init-shell: bash
+          cache-environment: true
+      - name: Build sidecar (PyInstaller onedir) + isolated smoke test
+        run: |
+          python scripts/fetch_ufg.py
+          python -m pip install --no-deps "xarm-python-sdk>=1.14" -e third_party/ufactory_genesis -e core
+          python scripts/build_sidecar.py
+          python scripts/sync_assets.py
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: apps/desktop/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+      - name: Tauri build
+        working-directory: apps/desktop
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm tauri build --bundles nsis --config src-tauri/tauri.bundle.conf.json
+      - name: Sizes and checksums
+        run: |
+          cd apps/desktop/src-tauri/target/release/bundle
+          ls -la nsis
+          sha256sum nsis/*.exe | tr -d '\r' | tee SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ugclient-windows-x64
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
             apps/desktop/src-tauri/target/release/bundle/SHA256SUMS.txt
           if-no-files-found: error
