@@ -1,19 +1,41 @@
 <script setup lang="ts">
-import { computed, onMounted, provide, watch } from 'vue'
+import { computed, onMounted, provide, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import enLocale from 'element-plus/es/locale/lang/en'
+import AppHeader from './components/AppHeader.vue'
+import AppNavRail, { type AppPage } from './components/AppNavRail.vue'
 import CheckView from './views/CheckView.vue'
+import FeaturePlaceholderView from './views/FeaturePlaceholderView.vue'
+import SettingsView from './views/SettingsView.vue'
 import { useEngineStore } from './stores/engine'
+import { useMotionStore } from './stores/motion'
 import { useRobotStore } from './stores/robot'
 import { useSettingsStore } from './stores/settings'
 
 const { locale } = useI18n()
 const engine = useEngineStore()
+const motion = useMotionStore()
 const robot = useRobotStore()
 const settings = useSettingsStore()
+const activePage = ref<AppPage>('live')
+const lastPrimaryPage = ref<Exclude<AppPage, 'settings'>>('live')
 const elLocale = computed(() => (locale.value === 'zh' ? zhCn : enLocale))
 watch(locale, (l) => localStorage.setItem('ugclient.locale', l))
+
+function selectPage(page: AppPage) {
+  motion.stop()
+  if (page === 'settings') {
+    activePage.value = activePage.value === 'settings' ? lastPrimaryPage.value : 'settings'
+  } else {
+    lastPrimaryPage.value = page
+    activePage.value = page
+  }
+}
+
+function backFromSettings() {
+  activePage.value = lastPrimaryPage.value
+}
 
 async function start() {
   if (await engine.connect()) {
@@ -51,7 +73,43 @@ onMounted(start)
 
 <template>
   <el-config-provider :locale="elLocale" size="small">
-    <!-- v8 layout: the Check page fills the window. Trajectory / Workspace tabs return once they have content. -->
-    <CheckView />
+    <div class="app-shell">
+      <AppHeader />
+      <div class="app-workspace">
+        <AppNavRail :active="activePage" @select="selectPage" />
+        <div class="app-body">
+          <!-- Preserve WebGL context & URDF assets when switching pages. -->
+          <CheckView v-show="activePage === 'live'" />
+          <FeaturePlaceholderView
+            v-if="activePage === 'blockly' || activePage === 'python' || activePage === 'gcode'"
+            :feature="activePage"
+          />
+          <SettingsView v-if="activePage === 'settings'" @back="backFromSettings" />
+        </div>
+      </div>
+    </div>
   </el-config-provider>
 </template>
+
+<style scoped>
+.app-shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--uc-app-bg);
+  color: var(--uc-ink);
+}
+.app-workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+.app-body {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+</style>

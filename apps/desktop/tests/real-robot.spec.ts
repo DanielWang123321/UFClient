@@ -3,6 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
 import MotionPanel from '../src/components/MotionPanel.vue'
+import RealRobotControl from '../src/components/RealRobotControl.vue'
 import StageNotices from '../src/components/StageNotices.vue'
 import { useEngineStore } from '../src/stores/engine'
 import { useRobotStore } from '../src/stores/robot'
@@ -51,6 +52,11 @@ function makeRealSnap(overrides: Partial<RealStatus> = {}): RealStatus {
     tcp_pose: [350, 0, 220, 180, 0, 0],
     tcp_offset: [0, 0, 173.5, 0, 0, 0],
     payload: { mass_kg: 0.8, com_mm: [0, 0, 40] },
+    collision_sensitivity: 4,
+    world_offset: [10, -5, 20, 0, 0, 15],
+    gravity_direction: [-1, 0, 0],
+    mount_direction: [90, 180],
+    initial_point: [-0.4, -31.7, -25.7, 0.2, 57.4, -0.2],
     ...overrides,
   }
 }
@@ -101,14 +107,7 @@ describe('real xArm6 store & dual-channel motion', () => {
       'real.move_joints': () => ({ ok: true }),
       'real.jog_joint_vel': () => ({ ok: true }),
       'real.jog_tcp_vel': () => ({ ok: true }),
-      'real.set_tcp': (p: Record<string, unknown>) => {
-        snap = { ...snap, tcp_offset: [...(p.offset as number[])] }
-        return snap
-      },
-      'real.set_payload': (p: Record<string, unknown>) => {
-        snap = { ...snap, payload: { mass_kg: Number(p.mass_kg), com_mm: [...(p.com_mm as [number, number, number])] } }
-        return snap
-      },
+      'real.read_settings': () => snap,
     }
     await useEngineStore().connect(
       async () => ({ port: 1, token: 't' }),
@@ -128,20 +127,48 @@ describe('real xArm6 store & dual-channel motion', () => {
     settings.setSpeedPct(85)
 
     expect(await real.connect()).toBe(true)
+    await flushPromises()
     expect(real.connected).toBe(true)
     expect(real.enabled).toBe(false)
     expect(robot.key).toBe('xarm6_1305')
     expect(robot.tcpOffset).toEqual([0, 0, 173.5, 0, 0, 0])
     expect(robot.payload).toEqual({ mass_kg: 0.8, com_mm: [0, 0, 40] })
     expect(settings.speedPct).toBe(REAL_DEFAULT_SPEED_PCT)
+    expect(settings.collisionSensitivity).toBe(4)
+    expect(settings.worldOffset).toEqual([10, -5, 20, 0, 0, 15])
+    expect(settings.mounting).toEqual({ preset: 'wallUp', tiltDeg: 90, rotateDeg: 180 })
+    expect(settings.initialPositionFor('xarm6_1305', 6)).toEqual([-0.4, -31.7, -25.7, 0.2, 57.4, -0.2])
+    expect(ws.sent.some((c) => c.method === 'real.read_settings')).toBe(true)
+    expect(ws.sent.some((c) => c.method.startsWith('real.set_'))).toBe(false)
     expect(robot.q).toEqual([12, -25, -40, 0, 65, 10])
 
     const fkCallsBefore = ws.sent.filter((c) => c.method === 'kin.fk').length
+    const tcpCallsBefore = ws.sent.filter((c) => c.method === 'tcp.set').length
+    const plCallsBefore = ws.sent.filter((c) => c.method === 'payload.set').length
+
+    // Repeated 15 Hz telemetry with identical TCP/payload never spams tcp.set / payload.set
     ws.push('real.state', makeRealSnap({ q_deg: [15, -20, -35, 1, 60, 5], tcp_pose: [360, 5, 225, 180, 0, 0] }))
+    ws.push('real.state', makeRealSnap({ q_deg: [16, -20, -35, 1, 60, 5], tcp_pose: [362, 5, 225, 180, 0, 0] }))
     await flushPromises()
-    expect(robot.q).toEqual([15, -20, -35, 1, 60, 5])
-    expect(robot.fk?.tcp_pose).toEqual([360, 5, 225, 180, 0, 0])
+    expect(robot.q).toEqual([16, -20, -35, 1, 60, 5])
+    expect(robot.fk?.tcp_pose).toEqual([362, 5, 225, 180, 0, 0])
     expect(ws.sent.filter((c) => c.method === 'kin.fk').length).toBe(fkCallsBefore)
+    expect(ws.sent.filter((c) => c.method === 'tcp.set').length).toBe(tcpCallsBefore)
+    expect(ws.sent.filter((c) => c.method === 'payload.set').length).toBe(plCallsBefore)
+
+    // When hardware reports updated TCP/payload, local Pinocchio syncs once
+    ws.push(
+      'real.state',
+      makeRealSnap({
+        tcp_offset: [0, 0, 120, 0, 0, 0],
+        payload: { mass_kg: 1.5, com_mm: [0, 0, 50] },
+      }),
+    )
+    await flushPromises()
+    expect(ws.sent.filter((c) => c.method === 'tcp.set').length).toBe(tcpCallsBefore + 1)
+    expect(ws.sent.filter((c) => c.method === 'payload.set').length).toBe(plCallsBefore + 1)
+    expect(robot.tcpOffset).toEqual([0, 0, 120, 0, 0, 0])
+    expect(robot.payload).toEqual({ mass_kg: 1.5, com_mm: [0, 0, 50] })
   })
 
   it('guards MotionPanel until enabled, routes click/hold/Home/STOP to real.* RPCs, and maps boundary notices', async () => {
@@ -193,5 +220,27 @@ describe('real xArm6 store & dual-channel motion', () => {
     expect(panel.find('[data-test="x+"]').attributes('disabled')).toBeUndefined()
     panel.unmount()
     notices.unmount()
+  })
+
+  it('omits motorEnable status row and Disable button from RealRobotControl dialog', async () => {
+    const real = useRealStore()
+    await real.connect('192.168.1.60')
+    const ctl = mount(RealRobotControl, { attachTo: document.body, global: { plugins: [i18n] } })
+
+    await ctl.find('[data-test="real-trigger"]').trigger('click')
+    await flushPromises()
+
+    expect(document.body.querySelector('[data-test="real-dialog"]')).not.toBeNull()
+    expect(document.body.querySelector('[data-test="real-enable-state"]')).toBeNull()
+    const enableBtn = document.body.querySelector('[data-test="real-enable"]') as HTMLButtonElement | null
+    expect(enableBtn?.textContent?.trim()).toBe('使能电机')
+
+    // Enable motors -> button hides instead of turning into Disable
+    enableBtn?.click()
+    await flushPromises()
+    expect(real.enabled).toBe(true)
+    expect(document.body.querySelector('[data-test="real-enable"]')).toBeNull()
+
+    ctl.unmount()
   })
 })

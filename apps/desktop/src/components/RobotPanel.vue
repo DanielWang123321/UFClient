@@ -1,10 +1,15 @@
 <script setup lang="ts">
 // End-effector card in the right sidebar (robot model selection lives in the 3D stage top-left).
+import { useI18n } from 'vue-i18n'
 import { useRobotStore } from '../stores/robot'
 import { useMotionStore } from '../stores/motion'
+import { useSettingsStore } from '../stores/settings'
+import { formatMountingLabel } from '../lib/mounting'
 
+const { t } = useI18n()
 const robot = useRobotStore()
 const motion = useMotionStore()
+const settings = useSettingsStore()
 
 async function onEe(ee: string) {
   motion.stop()
@@ -32,7 +37,7 @@ async function onEe(ee: string) {
       </div>
       <div class="tool-row">
         <label>{{ $t('robot.mounting') }}</label>
-        <span class="ro-val">{{ $t('robot.floor') }}</span>
+        <span class="ro-val" data-test="robot-mounting">{{ formatMountingLabel(settings.mounting, t) }}</span>
       </div>
       <div class="hint">{{ $t('robot.eeHint') }}</div>
     </div>

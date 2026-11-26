@@ -636,47 +636,12 @@
         ]
       }
     },
-    "real.set_tcp": {
-      "description": "Write TCP offset [x,y,z mm, r,p,y deg] to the physical controller while stationary.",
+    "real.read_settings": {
+      "description": "Read-only refresh of physical controller and UFACTORY Studio settings (mounting, initial point, collision sensitivity, world offset, TCP offset, payload). Never writes parameters back to hardware.",
       "params": {
         "type": "object",
-        "properties": {
-          "offset": {
-            "type": "array",
-            "items": {
-              "type": "number"
-            },
-            "minItems": 6,
-            "maxItems": 6
-          }
-        },
-        "required": [
-          "offset"
-        ]
-      }
-    },
-    "real.set_payload": {
-      "description": "Write payload mass (kg) and flange-frame COM (mm) to the physical controller while stationary.",
-      "params": {
-        "type": "object",
-        "properties": {
-          "mass_kg": {
-            "type": "number",
-            "minimum": 0
-          },
-          "com_mm": {
-            "type": "array",
-            "items": {
-              "type": "number"
-            },
-            "minItems": 3,
-            "maxItems": 3
-          }
-        },
-        "required": [
-          "mass_kg",
-          "com_mm"
-        ]
+        "properties": {},
+        "required": []
       }
     }
   },

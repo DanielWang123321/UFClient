@@ -117,14 +117,5 @@ def real_jog_tcp_vel(params: dict[str, Any], store: SessionStore) -> dict[str, A
     return store.real.jog_tcp_vel(speeds, duration_s=dur, boundary=_opt_boundary(params))
 
 
-def real_set_tcp(params: dict[str, Any], store: SessionStore) -> dict[str, Any]:
-    offset = vec(params, "offset", 6).tolist()
-    return store.real.set_tcp(offset)
-
-
-def real_set_payload(params: dict[str, Any], store: SessionStore) -> dict[str, Any]:
-    mass = number(params, "mass_kg")
-    if mass < 0:
-        raise invalid_params("mass_kg must be >= 0")
-    com = vec(params, "com_mm", 3).tolist()
-    return store.real.set_payload(mass, com)
+def real_read_settings(_: dict[str, Any], store: SessionStore) -> dict[str, Any]:
+    return store.real.read_settings()

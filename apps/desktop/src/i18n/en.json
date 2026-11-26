@@ -7,6 +7,18 @@
     "trajectory": "Trajectory",
     "workspace": "Workspace"
   },
+  "nav": {
+    "live": "Live Control",
+    "blockly": "Blockly",
+    "python": "Python",
+    "gcode": "GCode",
+    "settings": "Settings"
+  },
+  "featurePlaceholder": {
+    "blockly": "Visual Blockly programming for motion sequences and logic will be added in a future release.",
+    "python": "Python script editor and execution environment will be added in a future release.",
+    "gcode": "G-Code import, preview, and execution support will be added in a future release."
+  },
   "robot": {
     "title": "Robot",
     "toolTitle": "End effector",
@@ -23,17 +35,14 @@
     "hint": "Relative to the flange, mm / °",
     "apply": "Apply",
     "flange": "Flange",
-    "toolDefault": "tool default",
-    "summaryNone": "Flange (0)",
-    "confirmReal": "Write the new TCP Offset to the physical controller? Ensure the robot is stationary."
+    "toolDefault": "tool default"
   },
   "payload": {
     "title": "TCP Payload",
     "mass": "Mass (kg)",
     "com": "COM (mm, flange frame)",
     "hint": "Total tool + workpiece mass, same as UFACTORY Studio. End-effector models are visual only.",
-    "apply": "Apply",
-    "confirmReal": "Write the new TCP Payload to the physical controller? Ensure the robot is stationary."
+    "apply": "Apply"
   },
   "view": {
     "reset": "Reset view",
@@ -118,7 +127,6 @@
     "connecting": "Connecting…",
     "disconnect": "Disconnect",
     "enable": "Enable motors",
-    "disable": "Disable",
     "motorEnable": "Motors",
     "enabled": "Enabled",
     "disabled": "Disabled",
@@ -134,6 +142,78 @@
   },
   "settings": {
     "title": "Settings",
+    "back": "Settings",
+    "searchPlaceholder": "Search for settings",
+    "noMatches": "No matching settings categories.",
+    "readOnlyRealBanner": "Connected to physical robot ({ip}). Controller parameters are read-only from hardware and are never written back from UGClient.",
+    "refreshFromRobot": "Read from robot",
+    "refreshing": "Reading…",
+    "placeholderBadge": "Planned",
+    "plannedTitle": "Coming in a future update",
+    "nav": {
+      "motion": "Motion",
+      "externals": "Externals",
+      "safety": "Safety",
+      "general": "General",
+      "device": "My Device"
+    },
+    "motion": {
+      "jointMotion": "Joint Motion",
+      "jointStep": "Joint Step",
+      "lineMotion": "Line Motion",
+      "positionStep": "Position Step",
+      "attitudeStep": "Attitude Step",
+      "collisionDetection": "Collision Detection",
+      "sensitivity": "Sensitivity",
+      "initialPosition": "Initial Position",
+      "set": "Set",
+      "useCurrentPose": "Use current pose",
+      "resetZero": "Reset to 0°",
+      "tcpPayloadOffset": "TCP Payload and Offset",
+      "newPreset": "New",
+      "presetNamePlaceholder": "Preset name",
+      "savePreset": "Save",
+      "deletePreset": "Delete preset",
+      "currentPreset": "Current settings",
+      "payload": "Payload",
+      "weight": "Weight",
+      "offset": "Offset",
+      "coordinates": "Coordinates",
+      "baseCoord": "Base Coordinate System",
+      "mounting": "Mounting",
+      "mountFloor": "Floor (0°, 0°)",
+      "mountCeiling": "Ceiling (180°, 0°)",
+      "mountWallUp": "WallUp (90°, 180°)",
+      "mountWallDown": "WallDown (90°, 0°)",
+      "mountCustom": "Customized",
+      "mountFloorShort": "Floor",
+      "mountCeilingShort": "Ceiling",
+      "mountWallUpShort": "WallUp",
+      "mountWallDownShort": "WallDown",
+      "tiltAngle": "Tilt Angle",
+      "rotateAngle": "Rotate Angle",
+      "readOnlyTag": "Controller Read-Only"
+    },
+    "externals": {
+      "title": "Externals",
+      "desc": "End-effector I/O, grippers, force-torque sensors, and linear tracks will be added here in a future release."
+    },
+    "safetyPage": {
+      "plannedDesc": "Studio controller safety zones, reduced mode, and self-collision parameters will be added here in a future release. Local client safety boundaries are active below.",
+      "boundaryTitle": "Safety Boundary"
+    },
+    "generalPage": {
+      "plannedDesc": "Studio controller network, firmware upgrade, and log tools will be added here in a future release. Client preferences and version information are below."
+    },
+    "device": {
+      "title": "My Device",
+      "plannedDesc": "Hardware diagnostics, calibration records, and controller log export tools will be added here in a future release.",
+      "controllerTitle": "Connected Physical Controller",
+      "localTitle": "Local Simulation Engine",
+      "ip": "Controller IP",
+      "sn": "Serial Number",
+      "notConnected": "No physical robot connected (Simulation mode)"
+    },
     "jog": "Jog",
     "safety": "Safety boundary",
     "general": "General",

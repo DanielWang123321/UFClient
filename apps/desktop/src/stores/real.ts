@@ -13,6 +13,7 @@ export const useRealStore = defineStore('real', () => {
   const settings = useSettingsStore()
 
   const connecting = ref(false)
+  const refreshingSettings = ref(false)
   const busy = ref(false)
   const connected = ref(false)
   const ip = ref(settings.realIp)
@@ -31,6 +32,11 @@ export const useRealStore = defineStore('real', () => {
   const isRealMode = computed(() => connected.value)
   const canMove = computed(() => connected.value && enabled.value && errorCode.value === 0)
 
+  function vecChanged(a: number[], b: number[], eps = 1e-4): boolean {
+    if (a.length !== b.length) return true
+    return a.some((v, i) => Math.abs(v - (b[i] ?? 0)) > eps)
+  }
+
   function applySnapshot(snap: RealStatus) {
     connected.value = Boolean(snap.connected)
     if (snap.ip) ip.value = snap.ip
@@ -45,9 +51,28 @@ export const useRealStore = defineStore('real', () => {
     enabled.value = Boolean(snap.enabled)
     isSimulationRobot.value = Boolean(snap.is_simulation_robot)
 
-    if (snap.connected && Array.isArray(snap.q_deg) && snap.q_deg.length > 0) {
-      const targetDof = robot.info?.dof ?? snap.dof
-      if (snap.q_deg.length === targetDof) {
+    if (snap.connected) {
+      const targetKey = snap.robot_key || robot.key
+      const targetDof = snap.dof || robot.info?.dof || 6
+      settings.applyFromRealController(targetKey, targetDof, snap)
+
+      if (
+        robot.sessionId &&
+        Array.isArray(snap.tcp_offset) &&
+        snap.tcp_offset.length === 6 &&
+        vecChanged(snap.tcp_offset, robot.tcpOffset)
+      ) {
+        void robot.applyTcp(snap.tcp_offset)
+      }
+      if (
+        robot.sessionId &&
+        snap.payload &&
+        (Math.abs(snap.payload.mass_kg - robot.payload.mass_kg) > 1e-4 ||
+          vecChanged(snap.payload.com_mm, robot.payload.com_mm))
+      ) {
+        void robot.applyPayload(snap.payload)
+      }
+      if (Array.isArray(snap.q_deg) && snap.q_deg.length > 0 && snap.q_deg.length === targetDof) {
         robot.applyExternalState(snap.q_deg, snap.tcp_pose)
       }
     }
@@ -84,6 +109,7 @@ export const useRealStore = defineStore('real', () => {
       // Safety: always start real-robot mode at a conservative speed (20%).
       settings.setSpeedPct(REAL_DEFAULT_SPEED_PCT)
       applySnapshot(snap)
+      void refreshSettings()
       return true
     } catch (e) {
       lastError.value = e instanceof Error ? e.message : String(e)
@@ -150,38 +176,20 @@ export const useRealStore = defineStore('real', () => {
     }
   }
 
-  async function writeTcp(offset: number[]): Promise<boolean> {
-    busy.value = true
-    lastError.value = ''
+  async function refreshSettings(): Promise<boolean> {
+    if (!connected.value) return false
+    refreshingSettings.value = true
     try {
-      const snap = await engine.call<RealStatus>('real.set_tcp', { offset: [...offset] })
-      await robot.applyTcp(offset)
-      applySnapshot(snap)
+      const snap = await engine.call<RealStatus>('real.read_settings')
+      if (connected.value) applySnapshot(snap)
       return true
     } catch (e) {
-      lastError.value = e instanceof Error ? e.message : String(e)
+      if (connected.value) {
+        lastError.value = e instanceof Error ? e.message : String(e)
+      }
       return false
     } finally {
-      busy.value = false
-    }
-  }
-
-  async function writePayload(p: { mass_kg: number; com_mm: number[] }): Promise<boolean> {
-    busy.value = true
-    lastError.value = ''
-    try {
-      const snap = await engine.call<RealStatus>('real.set_payload', {
-        mass_kg: p.mass_kg,
-        com_mm: [...p.com_mm],
-      })
-      await robot.applyPayload(p)
-      applySnapshot(snap)
-      return true
-    } catch (e) {
-      lastError.value = e instanceof Error ? e.message : String(e)
-      return false
-    } finally {
-      busy.value = false
+      refreshingSettings.value = false
     }
   }
 
@@ -190,8 +198,31 @@ export const useRealStore = defineStore('real', () => {
   }
 
   return {
-    connecting, busy, connected, ip, robotKey, dof, version, sn, state, mode,
-    errorCode, warnCode, enabled, isSimulationRobot, lastError, isRealMode, canMove,
-    applySnapshot, connect, disconnect, setEnable, clearError, stop, writeTcp, writePayload, clearNotice,
+    connecting,
+    refreshingSettings,
+    busy,
+    connected,
+    ip,
+    robotKey,
+    dof,
+    version,
+    sn,
+    state,
+    mode,
+    errorCode,
+    warnCode,
+    enabled,
+    isSimulationRobot,
+    lastError,
+    isRealMode,
+    canMove,
+    applySnapshot,
+    connect,
+    disconnect,
+    setEnable,
+    clearError,
+    stop,
+    refreshSettings,
+    clearNotice,
   }
 })

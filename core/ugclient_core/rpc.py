@@ -53,8 +53,7 @@ METHODS: dict[str, Handler] = {
     "real.move_joints": real.real_move_joints,
     "real.jog_joint_vel": real.real_jog_joint_vel,
     "real.jog_tcp_vel": real.real_jog_tcp_vel,
-    "real.set_tcp": real.real_set_tcp,
-    "real.set_payload": real.real_set_payload,
+    "real.read_settings": real.real_read_settings,
 }
 
 

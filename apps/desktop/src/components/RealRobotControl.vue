@@ -43,9 +43,8 @@ async function onDisconnect() {
   await real.disconnect()
 }
 
-async function onToggleEnable() {
-  if (real.enabled) motion.stop()
-  await real.setEnable(!real.enabled)
+async function onEnable() {
+  await real.setEnable(true)
 }
 
 async function onClearError() {
@@ -116,10 +115,6 @@ async function onClearError() {
             <b>{{ robotDisplayName(real.robotKey) }} ({{ real.dof }} DOF)</b>
             <span>{{ $t('real.firmware') }}</span>
             <b class="num">{{ real.version || '—' }}</b>
-            <span>{{ $t('real.motorEnable') }}</span>
-            <b :class="real.enabled ? 'ok' : 'warn-txt'" data-test="real-enable-state">
-              {{ real.enabled ? $t('real.enabled') : $t('real.disabled') }}
-            </b>
             <span>{{ $t('real.stateMode') }}</span>
             <b class="num">state={{ real.state }} / mode={{ real.mode }}</b>
             <template v-if="real.errorCode !== 0 || real.warnCode !== 0">
@@ -134,16 +129,16 @@ async function onClearError() {
             </template>
           </div>
 
-          <div class="ctrl-actions">
+          <div v-if="!real.enabled || real.errorCode !== 0 || real.warnCode !== 0" class="ctrl-actions">
             <button
+              v-if="!real.enabled"
               type="button"
-              class="act-btn"
-              :class="real.enabled ? 'warn' : 'primary'"
-              :disabled="real.busy || (!real.enabled && real.errorCode !== 0)"
+              class="act-btn primary"
+              :disabled="real.busy || real.errorCode !== 0"
               data-test="real-enable"
-              @click="onToggleEnable"
+              @click="onEnable"
             >
-              {{ real.enabled ? $t('real.disable') : $t('real.enable') }}
+              {{ $t('real.enable') }}
             </button>
 
             <button
@@ -265,11 +260,6 @@ async function onClearError() {
   border-color: var(--uc-primary);
   color: #fff;
 }
-.act-btn.warn {
-  background: #fffbeb;
-  border-color: #d97706;
-  color: #92400e;
-}
 .act-btn.danger {
   background: var(--uc-danger);
   border-color: var(--uc-danger);
@@ -309,12 +299,6 @@ async function onClearError() {
 }
 .status-kv b.bad {
   color: var(--uc-danger);
-}
-.status-kv b.ok {
-  color: #15803d;
-}
-.status-kv b.warn-txt {
-  color: #b45309;
 }
 .ctrl-actions {
   display: flex;

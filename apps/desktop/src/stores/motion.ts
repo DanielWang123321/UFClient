@@ -223,7 +223,13 @@ export const useMotionStore = defineStore('motion', () => {
     const my = ++token
     state.value = STATE.moving
     active.value = t
-    const delta = dir * stepSize(t, { mm: settings.stepMm, deg: settings.stepDeg })
+    const delta =
+      dir *
+      stepSize(t, {
+        mm: settings.stepMm,
+        jointDeg: settings.jointStepDeg,
+        attitudeDeg: settings.attitudeStepDeg,
+      })
     try {
       if (real.connected) {
         await applyRealStep(t, delta)
@@ -366,9 +372,9 @@ export const useMotionStore = defineStore('motion', () => {
 
   type GoTarget = 'home' | 'align'
 
-  /** Joint target for Home (all zeros) or Align (sidecar). Sets notice and returns null if unreachable. */
+  /** Joint target for Home (configured Initial Position) or Align (sidecar). Sets notice and returns null if unreachable. */
   async function resolveTarget(kind: GoTarget): Promise<number[] | null> {
-    if (kind === 'home') return robot.q.map(() => 0)
+    if (kind === 'home') return settings.initialPositionFor(robot.key, robot.q.length)
     try {
       const r = await engine.call<JogResult>('motion.align', { session_id: robot.sessionId, q_deg: [...robot.q] })
       return r.q_deg
@@ -387,7 +393,7 @@ export const useMotionStore = defineStore('motion', () => {
     if (!target || my !== token) return
     state.value = STATE.moving
     active.value = null
-    const next = approach(robot.q, target, settings.stepDeg).q
+    const next = approach(robot.q, target, settings.jointStepDeg).q
     try {
       await guard(next)
       clearNotice()

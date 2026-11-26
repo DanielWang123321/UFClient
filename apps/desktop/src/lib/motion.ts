@@ -37,11 +37,18 @@ export function isLinear(t: JogTarget): boolean {
   return t.kind === 'tcp' && (t.axis === 'x' || t.axis === 'y' || t.axis === 'z')
 }
 
-export interface Steps { mm: number; deg: number }
+export interface Steps {
+  mm: number
+  deg?: number
+  jointDeg?: number
+  attitudeDeg?: number
+}
 
 /** Single-click increment (mm or deg). */
 export function stepSize(t: JogTarget, steps: Steps = { mm: MOTION.stepMm, deg: MOTION.stepDeg }): number {
-  return isLinear(t) ? steps.mm : steps.deg
+  if (t.kind === 'joint') return steps.jointDeg ?? steps.deg ?? MOTION.stepDeg
+  if (isLinear(t)) return steps.mm
+  return steps.attitudeDeg ?? steps.deg ?? MOTION.stepDeg
 }
 
 /** Validate a configured step; returns the fallback for invalid input and clamps into range. */

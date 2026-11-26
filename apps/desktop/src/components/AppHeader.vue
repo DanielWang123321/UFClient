@@ -1,30 +1,23 @@
 <script setup lang="ts">
-// Slim 48px workspace header: branding, real-robot & engine status, STOP, Settings, language.
-import { computed, inject, ref } from 'vue'
+// Slim 48px workspace header: branding, real-robot & engine status, STOP, language.
+import { computed, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEngineStore } from '../stores/engine'
 import { useMotionStore } from '../stores/motion'
 import { useRealStore } from '../stores/real'
 import { STATE } from '../lib/motion'
-import SettingsDialog from './SettingsDialog.vue'
 import RealRobotControl from './RealRobotControl.vue'
 
 const { locale } = useI18n()
 const engine = useEngineStore()
 const motion = useMotionStore()
 const real = useRealStore()
-const showSettings = ref(false)
 const retry = inject<() => void>('engine.retry', () => {})
 
 const effectiveState = computed(() => (real.connected ? real.state : motion.state))
 const stateKey = computed(() =>
   effectiveState.value === STATE.moving ? 'moving' : effectiveState.value === STATE.ready ? 'ready' : 'stopped',
 )
-
-function openSettings() {
-  motion.stop()
-  showSettings.value = true
-}
 </script>
 
 <template>
@@ -57,17 +50,11 @@ function openSettings() {
 
       <button type="button" class="stop-btn" data-test="stop" @click="motion.stop()">STOP</button>
 
-      <button type="button" class="hdr-btn" data-test="settings" @click="openSettings">
-        ⚙ {{ $t('settings.title') }}
-      </button>
-
       <div class="lang-seg" data-test="lang-switch">
         <button type="button" :class="{ on: locale === 'zh' }" @click="locale = 'zh'">中</button>
         <button type="button" :class="{ on: locale === 'en' }" @click="locale = 'en'">EN</button>
       </div>
     </div>
-
-    <SettingsDialog v-model="showSettings" />
   </header>
 </template>
 
@@ -155,22 +142,6 @@ function openSettings() {
 }
 .stop-btn:hover {
   background: #b91c1c;
-}
-.hdr-btn {
-  border: 1px solid var(--uc-border-strong);
-  border-radius: 3px;
-  padding: 5px 10px;
-  background: var(--uc-panel-bg);
-  color: var(--uc-ink);
-  font: inherit;
-  font-size: 11.5px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.hdr-btn:hover {
-  border-color: var(--uc-primary);
-  color: var(--uc-primary);
 }
 .lang-seg {
   display: inline-flex;

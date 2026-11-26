@@ -106,6 +106,11 @@ export interface RealStatus {
   tcp_pose: number[]
   tcp_offset: number[]
   payload: RealPayload
+  collision_sensitivity?: number | null
+  world_offset?: number[]
+  gravity_direction?: number[]
+  mount_direction?: number[]
+  initial_point?: number[] | null
 }
 
 export interface RealBoundaryParam {

@@ -9,6 +9,8 @@ import { RpcClient } from '../src/rpc/client'
 import { FakeWs, HELLO } from './fakeEngine'
 import { MOTION, STATE, sanitizeStep } from '../src/lib/motion'
 import { checkBoundary, defaultBoundary, normalizeBoundary } from '../src/lib/boundary'
+import { clampRotateDeg, clampTiltDeg, formatMountingLabel, matchMountingPreset } from '../src/lib/mounting'
+import { i18n } from '../src/i18n'
 
 const MODEL: [number, number][] = [[-360, 360], [-150, 150], [-3.5, 300], [-360, 360], [-124, 124], [-360, 360]]
 const LOAD = {
@@ -69,34 +71,63 @@ describe('settings + motion', () => {
     await useRobotStore().load('uf850')
   })
 
-  it('click steps come from the settings', async () => {
+  it('click steps distinguish linear, joint angular, attitude angular, and custom Home initial position', async () => {
     const s = useSettingsStore()
     const m = useMotionStore()
     const robot = useRobotStore()
     s.setStepMm(5)
-    s.setStepDeg(2.5)
+    s.setJointStepDeg(2.5)
+    s.setAttitudeStepDeg(4)
     await m.step({ kind: 'tcp', axis: 'z' }, 1)
-    expect(ws.sent.find((c) => c.method === 'motion.jog_tcp')?.params.delta).toBe(5)
+    expect(ws.sent.find((c) => c.method === 'motion.jog_tcp' && c.params.axis === 'z')?.params.delta).toBe(5)
+    await m.step({ kind: 'tcp', axis: 'yaw' }, -1)
+    expect(ws.sent.find((c) => c.method === 'motion.jog_tcp' && c.params.axis === 'yaw')?.params.delta).toBe(-4)
     await m.step({ kind: 'joint', index: 3 }, -1)
     expect(robot.q[3]).toBe(-2.5)
+
+    // Custom initial position becomes Home target
+    s.setInitialPosition('uf850', [5, 0, 0, 0, 0, 0])
     await robot.setQ([10, 0, 0, 0, 0, 0])
     await m.goStep('home')
     expect(robot.q[0]).toBeCloseTo(7.5)
   })
 
-  it('persists settings, boundaries per model, and jog speed percentage', () => {
+  it('persists settings, boundaries per model, mounting, sensitivity, world offset, and jog speed percentage', () => {
     const s = useSettingsStore()
     s.setStepMm(3)
+    s.setJointStepDeg(2)
+    s.setAttitudeStepDeg(4.5)
+    s.setCollisionSensitivity(5)
+    s.setWorldOffset([10, 20, 30, 0, 0, 45])
+    s.setMountingPreset('wallUp')
+    s.setInitialPosition('uf850', [1, -2, 3, 4, 5, -6])
     s.setSpeedPct(73)
     s.setBoundary('uf850', normalizeBoundary({ jointMax: [360, 20] }, MODEL), MODEL)
     s.save()
     setActivePinia(createPinia())
     const s2 = useSettingsStore()
     expect(s2.stepMm).toBe(3)
+    expect(s2.jointStepDeg).toBe(2)
+    expect(s2.attitudeStepDeg).toBe(4.5)
+    expect(s2.collisionSensitivity).toBe(5)
+    expect(s2.worldOffset).toEqual([10, 20, 30, 0, 0, 45])
+    expect(s2.mounting).toEqual({ preset: 'wallUp', tiltDeg: 90, rotateDeg: 180 })
+    expect(s2.initialPositionFor('uf850', 6)).toEqual([1, -2, 3, 4, 5, -6])
+    expect(s2.initialPositionFor('lite6', 6)).toEqual([0, 0, 0, 0, 0, 0])
     expect(s2.speedPct).toBe(73)
     expect(s2.boundaryFor('uf850', MODEL).jointMax[1]).toBe(20)
     expect(s2.boundaryFor('lite6', MODEL).jointMax[1]).toBe(150)
     expect(JSON.parse(localStorage.getItem(SETTINGS_KEY)!).boundaries.uf850).toBeTruthy()
+
+    // Mounting helper matches presets and clamps bounds
+    expect(matchMountingPreset(0, 0)).toBe('floor')
+    expect(matchMountingPreset(180, 0)).toBe('ceiling')
+    expect(matchMountingPreset(90, -180)).toBe('wallUp')
+    expect(matchMountingPreset(90, 0)).toBe('wallDown')
+    expect(matchMountingPreset(45, 30)).toBe('custom')
+    expect(clampTiltDeg(220)).toBe(180)
+    expect(clampRotateDeg(-250)).toBe(-180)
+    expect(formatMountingLabel({ preset: 'custom', tiltDeg: 35, rotateDeg: -60 }, i18n.global.t)).toContain('35°')
 
     // invalid persisted speed falls back to default 50
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({ speedPct: 101 }))

@@ -17,6 +17,7 @@ from ugclient_core.backend.real_xarm import (
     STATE_READY,
     STATE_STOP,
     RealXArmController,
+    gravity_to_mount_deg,
 )
 from ugclient_core.rpc import Connection
 from ugclient_core.session import SessionStore
@@ -36,6 +37,12 @@ class FakeXArm:
         warn_code: int = 0,
         motors_enabled: bool = False,
         decel_stop_code: int = 0,
+        collision_sensitivity: int = 3,
+        world_offset: list[float] | None = None,
+        gravity_direction: list[float] | None = None,
+        mount_direction: list[float] | None = None,
+        initial_point: list[float] | None = None,
+        studio_error: bool = False,
     ) -> None:
         self.ip = ip
         self.axis = axis
@@ -56,6 +63,14 @@ class FakeXArm:
         self.position = [320.0, 10.0, 250.0, 180.0, 0.0, 0.0]
         self.tcp_offset = [0.0, 0.0, 173.5, 0.0, 0.0, 0.0]
         self.tcp_load = [1.2, [0.0, 0.0, 45.0]]
+        self.collision_sensitivity = collision_sensitivity
+        self.world_offset = list(world_offset) if world_offset is not None else [10.0, -5.0, 20.0, 0.0, 0.0, 15.0]
+        self.gravity_direction = list(gravity_direction) if gravity_direction is not None else [0.0, 0.0, -1.0]
+        self._mount_direction = list(mount_direction) if mount_direction is not None else [0.0, 0.0]
+        self._initial_point = (
+            list(initial_point) if initial_point is not None else [-0.4, -31.7, -25.7, 0.2, 57.4, -0.2, 0.0]
+        )
+        self._studio_error = studio_error
         self.calls: list[tuple[str, tuple, dict]] = []
 
     def disconnect(self) -> None:
@@ -128,6 +143,18 @@ class FakeXArm:
         self.calls.append(("set_tcp_load", (weight, list(center_of_gravity)), kwargs))
         self.tcp_load = [weight, list(center_of_gravity)]
         return 0
+
+    def get_mount_direction(self) -> tuple[int, list[float]]:
+        self.calls.append(("get_mount_direction", (), {}))
+        if self._studio_error:
+            raise RuntimeError("studio offline")
+        return 0, list(self._mount_direction)
+
+    def get_initial_point(self) -> tuple[int, list[float]]:
+        self.calls.append(("get_initial_point", (), {}))
+        if self._studio_error:
+            return -1, []
+        return 0, list(self._initial_point)
 
 
 class RpcHarness:
@@ -329,7 +356,7 @@ def test_velocity_jog_modes_watchdog_and_boundary():
     h.call("real.disconnect")
 
 
-def test_stop_bypasses_command_lock_and_tcp_payload_guards():
+def test_stop_bypasses_command_lock_and_write_methods_removed():
     arm = FakeXArm("192.168.1.60")
     h = RpcHarness(lambda _ip: arm)
     h.call("real.connect", ip="192.168.1.60")
@@ -356,21 +383,81 @@ def test_stop_bypasses_command_lock_and_tcp_payload_guards():
         release.set()
         t.join(timeout=2.0)
 
-    # TCP / Payload write-back refused while moving, allowed when stationary
-    arm.state = STATE_MOVING
+    # Write-back settings RPC methods were strictly removed in 0.3.2
     r_tcp = h.raw("real.set_tcp", {"offset": [0, 0, 100, 0, 0, 0]})
-    assert r_tcp["error"]["code"] == errors.REAL_MOTION_REJECTED
+    assert r_tcp["error"]["code"] == errors.METHOD_NOT_FOUND
     r_pl = h.raw("real.set_payload", {"mass_kg": 2.0, "com_mm": [0, 0, 20]})
-    assert r_pl["error"]["code"] == errors.REAL_MOTION_REJECTED
-
-    arm.state = STATE_READY
-    snap1 = h.call("real.set_tcp", offset=[0, 0, 100, 0, 0, 0])
-    assert snap1["tcp_offset"] == [0.0, 0.0, 100.0, 0.0, 0.0, 0.0]
-    snap2 = h.call("real.set_payload", mass_kg=2.0, com_mm=[0, 0, 20])
-    assert snap2["payload"] == {"mass_kg": 2.0, "com_mm": [0.0, 0.0, 20.0]}
+    assert r_pl["error"]["code"] == errors.METHOD_NOT_FOUND
 
     # Emergency stop drops enabled
     snap_em = h.call("real.stop", emergency=True)
     assert snap_em["enabled"] is False
     assert any(c[0] == "emergency_stop" for c in arm.calls)
     h.call("real.disconnect")
+
+
+def test_gravity_to_mount_deg_presets_and_custom():
+    import math
+
+    assert gravity_to_mount_deg([0.0, 0.0, -1.0]) == [0.0, 0.0]
+    assert gravity_to_mount_deg([0.0, 0.0, 1.0]) == [180.0, 0.0]
+    assert gravity_to_mount_deg([-1.0, 0.0, 0.0]) == [90.0, 180.0]
+    assert gravity_to_mount_deg([1.0, 0.0, 0.0]) == [90.0, 0.0]
+    assert gravity_to_mount_deg([0.0, 0.0, 0.0]) == [0.0, 0.0]
+
+    # Round-trip custom mounting (tilt=35 deg, rotate=-60 deg)
+    t1, t2 = math.radians(35.0), math.radians(-60.0)
+    g = [math.cos(t2) * math.sin(t1), -math.sin(t2) * math.sin(t1), -math.cos(t1)]
+    tilt, rot = gravity_to_mount_deg(g)
+    assert tilt == pytest.approx(35.0, abs=1e-2)
+    assert rot == pytest.approx(-60.0, abs=1e-2)
+
+
+def test_read_settings_one_way_sync_and_gravity_fallback():
+    arm = FakeXArm(
+        "192.168.1.60",
+        collision_sensitivity=4,
+        world_offset=[10.0, -5.0, 20.0, 0.0, 0.0, 15.0],
+        gravity_direction=[-1.0, 0.0, 0.0],
+        mount_direction=[90.0, 180.0],
+        initial_point=[-0.4, -31.7, -25.7, 0.2, 57.4, -0.2, 0.0],
+    )
+    h = RpcHarness(lambda _ip: arm)
+    snap0 = h.call("real.connect", ip="192.168.1.60")
+    assert snap0["collision_sensitivity"] == 4
+    assert snap0["world_offset"] == [10.0, -5.0, 20.0, 0.0, 0.0, 15.0]
+    assert snap0["gravity_direction"] == [-1.0, 0.0, 0.0]
+    assert snap0["mount_direction"] == [90.0, 180.0]
+    assert snap0["initial_point"] is None
+
+    snap1 = h.call("real.read_settings")
+    assert snap1["mount_direction"] == [90.0, 180.0]
+    assert snap1["initial_point"] == pytest.approx([-0.4, -31.7, -25.7, 0.2, 57.4, -0.2])
+    # Strictly read-only: zero setter calls ever issued
+    write_calls = [
+        c
+        for c in arm.calls
+        if c[0]
+        in (
+            "set_tcp_offset",
+            "set_tcp_load",
+            "set_world_offset",
+            "set_collision_sensitivity",
+            "set_mount_direction",
+        )
+    ]
+    assert write_calls == []
+    h.call("real.disconnect")
+
+    # Fallback to gravity vector when Studio HTTP API errors/unavailable
+    arm_fb = FakeXArm(
+        "192.168.1.60",
+        gravity_direction=[0.0, 0.0, 1.0],
+        studio_error=True,
+    )
+    h2 = RpcHarness(lambda _ip: arm_fb)
+    h2.call("real.connect", ip="192.168.1.60")
+    snap_fb = h2.call("real.read_settings")
+    assert snap_fb["mount_direction"] == [180.0, 0.0]
+    assert snap_fb["initial_point"] is None
+    h2.call("real.disconnect")

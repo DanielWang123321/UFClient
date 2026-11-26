@@ -8,6 +8,9 @@ Safety invariants:
   any command is sent; mismatched or unrecognized controllers are refused and disconnected.
 - Controller errors/warnings are never cleared automatically. Motion requires explicit
   ``enable(True)`` and healthy controller state (``error_code == 0``).
+- Configuration parameters (TCP offset/payload, world offset, collision sensitivity, mounting,
+  initial point) are strictly read-only from the controller: UGClient reads them from the
+  hardware to sync local state and never writes configuration parameters back to the arm.
 - Continuous velocity jogs (Mode 4 / Mode 5) send ``duration=0`` once on start or velocity
   change (avoiding firmware segment pauses on repeated finite-duration commands), while
   periodic heartbeats refresh a sidecar watchdog timer and check safety boundaries;
@@ -22,6 +25,7 @@ import numbers
 import sys
 import threading
 import time
+import warnings
 from collections.abc import Callable
 from typing import Any
 
@@ -111,6 +115,42 @@ def _parse_payload(raw: Any) -> dict[str, Any]:
     else:
         com = _float_list(raw[1:4], 3)
     return {"mass_kg": mass, "com_mm": com}
+
+
+def _parse_collision_sensitivity(raw: Any) -> int | None:
+    if isinstance(raw, numbers.Integral) and not isinstance(raw, bool):
+        return max(0, min(5, int(raw)))
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool) and math.isfinite(raw):
+        return max(0, min(5, int(round(raw))))
+    return None
+
+
+def _parse_gravity(raw: Any) -> list[float]:
+    gx, gy, gz = _float_list(raw, 3)
+    if math.sqrt(gx * gx + gy * gy + gz * gz) < 1e-6:
+        return [0.0, 0.0, -1.0]
+    return [gx, gy, gz]
+
+
+def gravity_to_mount_deg(gravity: list[float]) -> list[float]:
+    """Invert XArm ``set_mount_direction`` gravity vector into ``[tilt_deg, rotate_deg]``."""
+    gx, gy, gz = _float_list(gravity, 3)
+    norm = math.sqrt(gx * gx + gy * gy + gz * gz)
+    if norm < 1e-6:
+        return [0.0, 0.0]
+    nx, ny, nz = gx / norm, gy / norm, gz / norm
+    tilt = math.degrees(math.acos(max(-1.0, min(1.0, -nz))))
+    if abs(math.sin(math.radians(tilt))) > 1e-4:
+        rot = math.degrees(math.atan2(-ny, nx))
+        if abs(rot + 180.0) < 1e-6:
+            rot = 180.0
+        if abs(rot) < 1e-9:
+            rot = 0.0
+    else:
+        rot = 0.0
+    if abs(tilt) < 1e-9:
+        tilt = 0.0
+    return [round(tilt, 3), round(rot, 3)]
 
 
 def _check_boundary(
@@ -208,6 +248,8 @@ class RealXArmController:
         self._active_vel: list[float] | None = None
         self._vel_started_at: float = 0.0
         self._stop_seq: int = 0
+        self._studio_mount_deg: list[float] | None = None
+        self._studio_initial_point: list[float] | None = None
 
     @property
     def is_connected(self) -> bool:
@@ -315,6 +357,8 @@ class RealXArmController:
             hw_en = self._read_hw_enabled(arm)
             self._enabled = bool(hw_en is True and error_code == 0)
             self._enable_grace_until = 0.0
+            self._studio_mount_deg = None
+            self._studio_initial_point = None
             self._clear_active_vel()
             return self.snapshot()
 
@@ -330,6 +374,8 @@ class RealXArmController:
             self._robot_key = ""
             self._dof = 0
             self._limits_deg = []
+            self._studio_mount_deg = None
+            self._studio_initial_point = None
             if arm is not None:
                 with contextlib.suppress(Exception):
                     if int(getattr(arm, "state", STATE_STOP)) == STATE_MOVING:
@@ -399,6 +445,59 @@ class RealXArmController:
                     raw = vals
         return _float_list(raw, 6)
 
+    def _resolve_mount_deg(self, gravity: list[float]) -> list[float]:
+        if self._studio_mount_deg is not None:
+            return list(self._studio_mount_deg)
+        return gravity_to_mount_deg(gravity)
+
+    def read_settings(self) -> dict[str, Any]:
+        """Fetch read-only controller/Studio settings without blocking motion locks or ``stop()``."""
+        arm = self._require_arm()
+        dof = self._dof
+        mount_val: list[float] | None = None
+        init_val: list[float] | None = None
+
+        with warnings.catch_warnings(), contextlib.redirect_stdout(sys.stderr):
+            warnings.simplefilter("ignore")
+            get_mount = getattr(arm, "get_mount_direction", None)
+            if callable(get_mount):
+                with contextlib.suppress(Exception):
+                    res = get_mount()
+                    if (
+                        isinstance(res, (list, tuple))
+                        and len(res) >= 2
+                        and res[0] == 0
+                        and isinstance(res[1], (list, tuple))
+                        and len(res[1]) >= 2
+                    ):
+                        tilt = float(res[1][0])
+                        rot = float(res[1][1])
+                        if math.isfinite(tilt) and math.isfinite(rot):
+                            mount_val = [max(0.0, min(180.0, tilt)), max(-180.0, min(180.0, rot))]
+
+            get_init = getattr(arm, "get_initial_point", None)
+            if callable(get_init):
+                with contextlib.suppress(Exception):
+                    res = get_init()
+                    if (
+                        isinstance(res, (list, tuple))
+                        and len(res) >= 2
+                        and res[0] == 0
+                        and isinstance(res[1], (list, tuple))
+                        and dof > 0
+                        and len(res[1]) >= dof
+                    ):
+                        pts = [float(x) for x in res[1][:dof]]
+                        if all(math.isfinite(x) for x in pts):
+                            init_val = pts
+
+        if self._arm is arm:
+            if mount_val is not None:
+                self._studio_mount_deg = mount_val
+            if init_val is not None:
+                self._studio_initial_point = init_val
+        return self.snapshot()
+
     def snapshot(self) -> dict[str, Any]:
         arm = self._arm
         if arm is None or not getattr(arm, "connected", False):
@@ -420,6 +519,11 @@ class RealXArmController:
                 "tcp_pose": [],
                 "tcp_offset": [0.0] * 6,
                 "payload": {"mass_kg": 0.0, "com_mm": [0.0, 0.0, 0.0]},
+                "collision_sensitivity": None,
+                "world_offset": [0.0] * 6,
+                "gravity_direction": [0.0, 0.0, -1.0],
+                "mount_direction": [0.0, 0.0],
+                "initial_point": None,
             }
 
         error_code = int(getattr(arm, "error_code", 0) or 0)
@@ -437,6 +541,7 @@ class RealXArmController:
                     if c == 0 and isinstance(val, str):
                         sn = val
 
+        gravity = _parse_gravity(getattr(arm, "gravity_direction", None))
         return {
             "connected": True,
             "ip": self._ip,
@@ -454,6 +559,11 @@ class RealXArmController:
             "tcp_pose": self._read_tcp_pose(arm),
             "tcp_offset": _float_list(getattr(arm, "tcp_offset", None), 6),
             "payload": _parse_payload(getattr(arm, "tcp_load", None)),
+            "collision_sensitivity": _parse_collision_sensitivity(getattr(arm, "collision_sensitivity", None)),
+            "world_offset": _float_list(getattr(arm, "world_offset", None), 6),
+            "gravity_direction": gravity,
+            "mount_direction": self._resolve_mount_deg(gravity),
+            "initial_point": list(self._studio_initial_point) if self._studio_initial_point is not None else None,
         }
 
     # -- Guards & Mode management --------------------------------------------
@@ -810,29 +920,6 @@ class RealXArmController:
             self._arm_watchdog(dur + WATCHDOG_MARGIN_S)
             return {"ok": True}
 
-    # -- Configuration write-back (only when stationary) ---------------------
-    def set_tcp(self, offset: list[float]) -> dict[str, Any]:
-        with self._cmd_lock:
-            arm = self._require_arm()
-            self._check_error_free(arm)
-            if int(getattr(arm, "state", STATE_STOP)) == STATE_MOVING:
-                raise RpcError(REAL_MOTION_REJECTED, "cannot change TCP offset while robot is moving")
-            code = int(arm.set_tcp_offset(list(offset), is_radian=False, wait=True))
-            if code != 0:
-                raise RpcError(REAL_MOTION_REJECTED, f"set_tcp_offset failed with SDK code {code}")
-            return self.snapshot()
-
-    def set_payload(self, mass_kg: float, com_mm: list[float]) -> dict[str, Any]:
-        with self._cmd_lock:
-            arm = self._require_arm()
-            self._check_error_free(arm)
-            if int(getattr(arm, "state", STATE_STOP)) == STATE_MOVING:
-                raise RpcError(REAL_MOTION_REJECTED, "cannot change payload while robot is moving")
-            code = int(arm.set_tcp_load(float(mass_kg), list(com_mm), wait=True))
-            if code != 0:
-                raise RpcError(REAL_MOTION_REJECTED, f"set_tcp_load failed with SDK code {code}")
-            return self.snapshot()
-
 
 __all__ = [
     "CONTROLLER_MODEL_MAP",
@@ -848,4 +935,5 @@ __all__ = [
     "STATE_PAUSE",
     "STATE_READY",
     "STATE_STOP",
+    "gravity_to_mount_deg",
 ]

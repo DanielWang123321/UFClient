@@ -1,10 +1,15 @@
 <script setup lang="ts">
 // Frosted-glass telemetry card floating in the top-right corner of the 3D stage, with collapse toggle.
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRobotStore } from '../stores/robot'
+import { useSettingsStore } from '../stores/settings'
+import { formatMountingLabel } from '../lib/mounting'
 import { fmt } from '../lib/units'
 
+const { t } = useI18n()
 const robot = useRobotStore()
+const settings = useSettingsStore()
 const collapsed = ref(false)
 const tcpFields = [
   { key: 'X', unit: 'mm' },
@@ -84,7 +89,7 @@ const dof = computed(() => robot.q.length || robot.info?.dof || 6)
         </div>
         <div>
           <span>{{ $t('robot.mounting') }}</span>
-          <b>{{ $t('robot.floor') }}</b>
+          <b data-test="telemetry-mounting">{{ formatMountingLabel(settings.mounting, t) }}</b>
         </div>
       </div>
     </div>

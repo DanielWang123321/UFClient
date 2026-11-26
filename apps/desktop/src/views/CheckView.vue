@@ -1,13 +1,10 @@
 <script setup lang="ts">
 // Two-column desktop workbench inspired by ufactory_robot_viewer:
-// slim top header, full-height 3D stage on the left, 400px motion & configuration sidebar on the right.
+// full-height 3D stage on the left, 400px motion & end-effector sidebar on the right.
 import { onBeforeUnmount, onMounted } from 'vue'
-import AppHeader from '../components/AppHeader.vue'
 import Viewport from '../components/Viewport.vue'
 import MotionPanel from '../components/MotionPanel.vue'
 import RobotPanel from '../components/RobotPanel.vue'
-import TcpPanel from '../components/TcpPanel.vue'
-import PayloadPanel from '../components/PayloadPanel.vue'
 import { useMotionStore } from '../stores/motion'
 
 const motion = useMotionStore()
@@ -34,7 +31,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="workspace">
-    <AppHeader />
     <main class="experience">
       <section class="stage-pane">
         <Viewport />
@@ -44,8 +40,6 @@ onBeforeUnmount(() => {
           <MotionPanel />
           <div class="selection-stack">
             <RobotPanel />
-            <TcpPanel />
-            <PayloadPanel />
           </div>
         </div>
       </aside>

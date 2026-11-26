@@ -4,6 +4,21 @@ All notable changes to UGClient (formerly Uclient) are documented here. Format: 
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-11-26
+
+### Added
+- Narrow left primary navigation rail (`AppNavRail`) with **Live Control**, planned **Blockly / Python / GCode** placeholder entries (`FeaturePlaceholderView`), and a persistent bottom-left **Settings** entry.
+- Dedicated full-window secondary **Settings** view (`SettingsView`) matching current UFACTORY Studio navigation (`← Settings`, search box, and 5 categories: **Motion**, **Externals**, **Safety**, **General**, **My Device**).
+- Unified **Motion** settings page merging Studio's `Parameters`, `TCP`, and `Coordinates` views in UGClient's light neutral industrial style:
+  - Separate **Joint Step** (`jointStepDeg`), **Position Step** (`stepMm`), and **Attitude Step** (`attitudeStepDeg`) click increments.
+  - **Collision Detection** (`0–5` sensitivity scale) and per-model **Initial Position** configuration (`Home` motion target).
+  - Unified **TCP Payload & Offset** card with `+ New` / preset management, plus **Coordinates** (World / Base Coordinate System offset & presets) and **Mounting** presets (`Floor`, `Ceiling`, `WallUp`, `WallDown`, `Customized` with `Tilt Angle` & `Rotate Angle`) synced live to `RobotPanel` and `StageTelemetry`.
+- One-way read-only hardware parameter synchronization (`real.read_settings`): reads `collision_sensitivity`, `world_offset`, `gravity_direction`, `mount_direction` (`get_mount_direction()` with inverse gravity fallback), and `initial_point` (`get_initial_point()`) from the connected physical controller to overwrite local state without blocking motion locks.
+
+### Changed
+- Moved the Settings entry from `AppHeader` to the bottom-left primary navigation rail and removed `TcpPanel` / `PayloadPanel` from the main workbench right sidebar (TCP & Payload configuration now lives in **Settings -> Motion**), while preserving the 3D WebGL viewport context across page switches via `v-show`.
+- Strict read-only physical robot invariant: removed `real.set_tcp` and `real.set_payload` RPC methods and frontend write helpers so UGClient never writes configuration parameters back to physical hardware.
+
 ## [0.3.1] - 2026-11-25
 
 ### Added
