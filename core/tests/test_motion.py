@@ -4,9 +4,9 @@ import numpy as np
 import pinocchio as pin
 import pytest
 
-from ugclient_core import errors
-from ugclient_core.backend.kin_pinocchio import pose_si_to_se3
-from ugclient_core.units import pose_api_to_si, wrap_deg
+from ufclient_core import errors
+from ufclient_core.backend.kin_pinocchio import pose_si_to_se3
+from ufclient_core.units import pose_api_to_si, wrap_deg
 
 Q0 = [0, -30, -60, 0, 60, 0]
 

@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from ugclient_core import errors, units
-from ugclient_core.rpc import Connection
-from ugclient_core.session import SessionStore
+from ufclient_core import errors, units
+from ufclient_core.rpc import Connection
+from ufclient_core.session import SessionStore
 
 
 def test_auth_required():
@@ -28,7 +28,7 @@ def test_hello_and_ping(client):
     assert client.call("ping") == "pong"
     h = client.call("system.hello", token="t0k")
     assert h["api_version"] == "1.0" and h["pinocchio_version"] == "4.0.0"
-    assert h["backend"] == {"kin": "ugclient", "dyn": "ugclient"}
+    assert h["backend"] == {"kin": "ufclient", "dyn": "ufclient"}
 
 
 def test_robot_list_supported_models(client):
@@ -82,7 +82,7 @@ def test_schema_lists_every_method():
     import json
     from pathlib import Path
 
-    from ugclient_core.rpc import METHODS
+    from ufclient_core.rpc import METHODS
 
     schema = json.loads((Path(__file__).resolve().parents[2] / "schema" / "api.v1.json").read_text(encoding="utf-8"))
     assert set(METHODS) | {"system.hello", "system.shutdown", "ping"} == set(schema["methods"])
@@ -144,7 +144,7 @@ def test_synced_assets_cover_every_visual_urdf(tmp_path):
     import importlib.util
     from pathlib import Path
 
-    from ugclient_core.backend import factory
+    from ufclient_core.backend import factory
 
     root = Path(__file__).resolve().parents[2]
     spec = importlib.util.spec_from_file_location("sync_assets", root / "scripts" / "sync_assets.py")
@@ -192,7 +192,7 @@ def test_factory_loads_urdf_from_non_ascii_path(tmp_path):
     from dataclasses import replace
     from pathlib import Path
 
-    from ugclient_core.backend import factory
+    from ufclient_core.backend import factory
 
     info = factory.catalog().info("uf850")
     non_ascii_dir = tmp_path / "中文路径"

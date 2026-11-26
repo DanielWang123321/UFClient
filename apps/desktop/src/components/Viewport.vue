@@ -78,7 +78,7 @@ onMounted(() => {
       ctl.setVisible('tcp', show.value.tcp)
     }
   }
-  ;(window as unknown as { __ugclientScene?: SceneController }).__ugclientScene = ctl
+  ;(window as unknown as { __ufclientScene?: SceneController }).__ufclientScene = ctl
   load()
 })
 

@@ -1,9 +1,9 @@
 {
-  "name": "ugclient-desktop",
+  "name": "ufclient-desktop",
   "private": true,
   "version": "0.3.2",
   "type": "module",
-  "license": "MIT",
+  "license": "BSD-3-Clause",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",

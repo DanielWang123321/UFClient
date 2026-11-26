@@ -5,6 +5,7 @@ describe('project file', () => {
   it('new project matches the golden U1 defaults', () => {
     const p = newProject()
     expect(p.schema_version).toBe(SCHEMA_VERSION)
+    expect(p.app.name).toBe('UFClient')
     expect(p.payload_presets[0]).toMatchObject({ mass_kg: 3, com_mm: [0, 0, 35] })
     expect(p.poses[0].tcp_pose).toEqual([830, 0, 200, -180, 0, 0])
   })
@@ -42,6 +43,7 @@ describe('legacy Uclient project files', () => {
     expect(p.app.name).toBe('Uclient')
     expect(isProjectFileName('850_check.uclient.json')).toBe(true)
     expect(isProjectFileName('850_check.ugclient.json')).toBe(true)
+    expect(isProjectFileName('850_check.ufclient.json')).toBe(true)
     expect(isProjectFileName('notes.json')).toBe(false)
   })
 })

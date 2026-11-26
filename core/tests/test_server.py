@@ -12,9 +12,9 @@ import sys
 import websockets
 from websockets.sync.client import connect
 
-from ugclient_core import server
-from ugclient_core.backend.real_xarm import MODE_POSITION, STATE_READY, STATE_STOP, RealXArmController
-from ugclient_core.session import SessionStore
+from ufclient_core import server
+from ufclient_core.backend.real_xarm import MODE_POSITION, STATE_READY, STATE_STOP, RealXArmController
+from ufclient_core.session import SessionStore
 
 
 class _FakeArm:
@@ -47,7 +47,7 @@ class _FakeArm:
 
 
 def test_sidecar_handshake_and_rpc():
-    p = subprocess.Popen([sys.executable, "-m", "ugclient_core"], stdout=subprocess.PIPE, text=True)
+    p = subprocess.Popen([sys.executable, "-m", "ufclient_core"], stdout=subprocess.PIPE, text=True)
     try:
         first_line = p.stdout.readline()
         assert "SDK_VERSION" not in first_line

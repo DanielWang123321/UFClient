@@ -4,6 +4,6 @@ Comment={{comment}}
 Exec={{exec}}
 StartupWMClass={{exec}}
 Icon={{icon}}
-Name=UGClient
+Name=UFClient
 Terminal=false
 Type=Application

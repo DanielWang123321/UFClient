@@ -73,7 +73,7 @@ jobs:
       - uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: core/environment-win.yml
-          environment-name: ugclient-win
+          environment-name: ufclient-win
           init-shell: bash
           cache-environment: true
       - name: Build sidecar & sync assets
@@ -136,11 +136,11 @@ jobs:
           rm -f SHA256SUMS-linux.txt SHA256SUMS-windows.txt
           cat SHA256SUMS.txt
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            gh release edit "${GITHUB_REF_NAME}" --title "UGClient ${GITHUB_REF_NAME}" \
+            gh release edit "${GITHUB_REF_NAME}" --title "UFClient ${GITHUB_REF_NAME}" \
               --notes-file "${GITHUB_WORKSPACE}/docs/release-notes/${GITHUB_REF_NAME}.md"
             gh release upload "${GITHUB_REF_NAME}" *.deb *.exe SHA256SUMS.txt --clobber
           else
-            gh release create "${GITHUB_REF_NAME}" --title "UGClient ${GITHUB_REF_NAME}" \
+            gh release create "${GITHUB_REF_NAME}" --title "UFClient ${GITHUB_REF_NAME}" \
               --notes-file "${GITHUB_WORKSPACE}/docs/release-notes/${GITHUB_REF_NAME}.md" \
               *.deb *.exe SHA256SUMS.txt
           fi

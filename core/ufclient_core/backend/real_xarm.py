@@ -9,7 +9,7 @@ Safety invariants:
 - Controller errors/warnings are never cleared automatically. Motion requires explicit
   ``enable(True)`` and healthy controller state (``error_code == 0``).
 - Configuration parameters (TCP offset/payload, world offset, collision sensitivity, mounting,
-  initial point) are strictly read-only from the controller: UGClient reads them from the
+  initial point) are strictly read-only from the controller: UFClient reads them from the
   hardware to sync local state and never writes configuration parameters back to the arm.
 - Continuous velocity jogs (Mode 4 / Mode 5) send ``duration=0`` once on start or velocity
   change (avoiding firmware segment pauses on repeated finite-duration commands), while
@@ -45,7 +45,7 @@ from .kin_pinocchio import LINEAR_AXES, ROT_AXES, jog_target, pose_si_to_se3, se
 
 DEFAULT_REAL_IP = "192.168.1.60"
 
-#: Controller (axis, device_type) -> UGClient robot key (firmware v2.x convention).
+#: Controller (axis, device_type) -> UFClient robot key (firmware v2.x convention).
 CONTROLLER_MODEL_MAP: dict[tuple[int, int], str] = {
     (5, 5): "xarm5_1305",
     (6, 6): "xarm6_1305",

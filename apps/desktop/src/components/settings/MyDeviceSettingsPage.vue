@@ -39,7 +39,7 @@ const robot = useRobotStore()
       <div v-else class="kv">
         <i>{{ $t('info.state') }}</i><b>{{ $t('settings.device.notConnected') }}</b>
         <i>{{ $t('robot.model') }}</i><b>{{ robotDisplayName(robot.key) }}</b>
-        <i>ugclient-core</i><b class="num">{{ engine.hello?.core_version ?? '—' }}</b>
+        <i>ufclient-core</i><b class="num">{{ engine.hello?.core_version ?? '—' }}</b>
         <i>ufactory_genesis</i>
         <b class="num">{{ engine.hello ? `${engine.hello.ufactory_genesis_version} (${engine.hello.ufactory_genesis_commit})` : '—' }}</b>
         <i>Pinocchio</i><b class="num">{{ engine.hello?.pinocchio_version ?? '—' }}</b>

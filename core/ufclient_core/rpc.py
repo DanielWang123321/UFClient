@@ -24,7 +24,7 @@ from .errors import (
 )
 from .session import SessionStore
 
-log = logging.getLogger("ugclient_core")
+log = logging.getLogger("ufclient_core")
 Handler = Callable[[dict[str, Any], SessionStore], Any]
 
 METHODS: dict[str, Handler] = {

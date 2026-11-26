@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Unified Motion Settings page (Parameters / TCP / Coordinates) matching UFACTORY Studio structure
-// and UGClient's light neutral industrial style. Physical controller parameters are strictly read-only.
+// and UFClient's light neutral industrial style. Physical controller parameters are strictly read-only.
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { MOTION } from '../../lib/motion'

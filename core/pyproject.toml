@@ -3,11 +3,11 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ugclient-core"
+name = "ufclient-core"
 version = "0.3.2"
-description = "UGClient computation sidecar (kinematics / dynamics over JSON-RPC WebSocket)"
+description = "UFClient computation sidecar (kinematics / dynamics over JSON-RPC WebSocket)"
 requires-python = ">=3.12"
-license = {text = "MIT"}
+license = {text = "BSD-3-Clause"}
 authors = [{name = "Daniel Wang"}]
 # ufactory_genesis is NOT listed here: upstream only supports a source checkout
 # + `pip install -e .`. scripts/fetch_ufg.py clones it at the pinned commit below.
@@ -24,13 +24,13 @@ dependencies = [
 dev = ["pytest>=8", "ruff>=0.6", "pyinstaller>=6.10"]
 
 [project.scripts]
-ugclient-core = "ugclient_core.__main__:main"
+ufclient-core = "ufclient_core.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["ugclient_core*"]
+include = ["ufclient_core*"]
 
-[tool.ugclient.ufactory_genesis]
+[tool.ufclient.ufactory_genesis]
 repository = "https://github.com/xArm-Developer/ufactory_genesis.git"
 # Pinned commit: v0.3.10 (Robotiq 2F-85/2F-140 + 11 mm flange adapter, mounting plates, unified xArm link_base inertials).
 commit = "c167f1e"

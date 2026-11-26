@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Start UGClient backend (ugclient_core) and frontend (Vite) in one command.
+"""Start UFClient backend (ufclient_core) and frontend (Vite) in one command.
 
 Injects the backend's random {port, token} handshake into Vite via
-``VITE_UGCLIENT_PORT`` and ``VITE_UGCLIENT_TOKEN`` so opening
+``VITE_UFCLIENT_PORT`` and ``VITE_UFCLIENT_TOKEN`` so opening
 ``http://localhost:<port>`` in a browser connects immediately.
 """
 
@@ -39,12 +39,12 @@ REQUIRED_BACKEND_IMPORTS = ("pinocchio", "websockets", "yaml", "packaging")
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(
         prog="dev.py",
-        description="Launch UGClient Python WebSocket backend and Vue/Vite dev frontend together.",
+        description="Launch UFClient Python WebSocket backend and Vue/Vite dev frontend together.",
     )
     ap.add_argument("--port", type=int, default=DEFAULT_FRONTEND_PORT, help="Frontend Vite port (default: 1420)")
     ap.add_argument("--backend-port", type=int, default=0, help="Backend WebSocket port (0 = random free port)")
     ap.add_argument("--token", default=None, help="Optional fixed WebSocket auth token")
-    ap.add_argument("--python", type=Path, default=None, help="Python executable for ugclient_core")
+    ap.add_argument("--python", type=Path, default=None, help="Python executable for ufclient_core")
     ap.add_argument(
         "--sync-assets",
         action="store_true",
@@ -125,7 +125,7 @@ def _discover_conda_pythons() -> list[Path]:
 
 
 def resolve_backend_python(explicit: Path | None = None) -> Path:
-    override = explicit or (Path(p) if (p := os.environ.get("UGCLIENT_PYTHON")) else None)
+    override = explicit or (Path(p) if (p := os.environ.get("UFCLIENT_PYTHON") or os.environ.get("UGCLIENT_PYTHON")) else None)
     if override is not None:
         candidate = override.expanduser()
         if not has_backend_deps(candidate):
@@ -245,7 +245,7 @@ def start_backend(
     backend_port: int,
     token: str | None,
 ) -> tuple[subprocess.Popen[str], int, str]:
-    cmd = [str(backend_py), "-u", "-m", "ugclient_core", "--host", "127.0.0.1", "--port", str(backend_port)]
+    cmd = [str(backend_py), "-u", "-m", "ufclient_core", "--host", "127.0.0.1", "--port", str(backend_port)]
     if token:
         cmd.extend(["--token", token])
 
@@ -321,8 +321,8 @@ def start_frontend(
     backend_token: str,
 ) -> subprocess.Popen[bytes]:
     env = dict(frontend_env)
-    env["VITE_UGCLIENT_PORT"] = str(backend_port)
-    env["VITE_UGCLIENT_TOKEN"] = backend_token
+    env["VITE_UFCLIENT_PORT"] = str(backend_port)
+    env["VITE_UFCLIENT_TOKEN"] = backend_token
 
     cmd = [str(pnpm_bin), "run", "dev"]
     if port != DEFAULT_FRONTEND_PORT:
@@ -444,7 +444,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             "\n"
             "============================================================\n"
-            "UGClient Dev Server Ready\n"
+            "UFClient Dev Server Ready\n"
             f"  Browser URL : {url}\n"
             f"  Backend WS  : ws://127.0.0.1:{ws_port} (auto-injected)\n"
             f"  Backend Py  : {backend_py}\n"

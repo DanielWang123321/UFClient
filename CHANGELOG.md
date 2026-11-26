@@ -4,6 +4,10 @@ All notable changes to UGClient (formerly Uclient) are documented here. Format: 
 
 ## [Unreleased]
 
+### Changed
+- Renamed project, GitHub repository (`DanielWang123321/UFClient`), desktop package/binary (`ufclient`), Python sidecar package/CLI (`ufclient-core` / `ufclient_core`), Tauri app identifier (`io.github.danielwang123321.ufclient`), and environment/project prefixes to **UFClient** (`*.ufclient.json`, preserving legacy `*.ugclient.json` and `*.uclient.json` compatibility).
+- Relicensed project source code from MIT to **BSD-3-Clause** (see [LICENSE](LICENSE) and [NOTICE](NOTICE)).
+
 ## [0.3.2] - 2026-11-26
 
 ### Added

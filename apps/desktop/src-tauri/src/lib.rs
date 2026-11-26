@@ -30,7 +30,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![engine_handshake, write_text_file])
         .build(tauri::generate_context!())
-        .expect("error while building UGClient");
+        .expect("error while building UFClient");
     app.run(move |_, ev| {
         if let RunEvent::Exit = ev {
             engine.shutdown();

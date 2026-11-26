@@ -4,7 +4,7 @@ import numpy as np
 import pinocchio as pin
 import pytest
 
-from ugclient_core import units
+from ufclient_core import units
 
 
 def _wrapdiff(a, b):

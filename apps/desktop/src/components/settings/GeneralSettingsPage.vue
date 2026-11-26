@@ -48,11 +48,11 @@ const engine = useEngineStore()
       <h2>{{ $t('settings.about') }}</h2>
       <div class="kv">
         <i>{{ $t('app.title') }}</i><b class="num">{{ pkg.version }}</b>
-        <i>ugclient-core</i><b class="num">{{ engine.hello?.core_version ?? '—' }}</b>
+        <i>ufclient-core</i><b class="num">{{ engine.hello?.core_version ?? '—' }}</b>
         <i>ufactory_genesis</i>
         <b class="num">{{ engine.hello ? `${engine.hello.ufactory_genesis_version} (${engine.hello.ufactory_genesis_commit})` : '—' }}</b>
         <i>Pinocchio</i><b class="num">{{ engine.hello?.pinocchio_version ?? '—' }}</b>
-        <i>{{ $t('settings.license') }}</i><b>MIT</b>
+        <i>{{ $t('settings.license') }}</i><b>BSD-3-Clause</b>
       </div>
     </article>
   </div>

@@ -41,5 +41,5 @@ export const HELLO = {
   ufactory_genesis_commit: 'c167f1e',
   pinocchio_version: '4.0.0',
   capabilities: ['kin', 'dyn', 'real'],
-  backend: { kin: 'ugclient', dyn: 'ugclient' },
+  backend: { kin: 'ufclient', dyn: 'ufclient' },
 }

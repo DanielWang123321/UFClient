@@ -12,7 +12,7 @@ from .dyn_pinocchio import PinocchioDynamics
 from .interfaces import RobotInfo
 from .kin_pinocchio import PinocchioKinematics
 
-BACKEND_NAMES = {"kin": "ugclient", "dyn": "ugclient"}
+BACKEND_NAMES = {"kin": "ufclient", "dyn": "ufclient"}
 
 _catalog: UfgCatalog | None = None
 

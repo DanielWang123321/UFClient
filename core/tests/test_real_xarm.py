@@ -7,8 +7,8 @@ import time
 
 import pytest
 
-from ugclient_core import errors
-from ugclient_core.backend.real_xarm import (
+from ufclient_core import errors
+from ufclient_core.backend.real_xarm import (
     MODE_CARTESIAN_VELOCITY,
     MODE_JOINT_VELOCITY,
     MODE_POSITION,
@@ -19,8 +19,8 @@ from ugclient_core.backend.real_xarm import (
     RealXArmController,
     gravity_to_mount_deg,
 )
-from ugclient_core.rpc import Connection
-from ugclient_core.session import SessionStore
+from ufclient_core.rpc import Connection
+from ufclient_core.session import SessionStore
 
 
 class FakeXArm:

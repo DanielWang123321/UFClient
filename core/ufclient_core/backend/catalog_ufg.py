@@ -3,7 +3,7 @@
 Only ``ufactory.robots``, ``ufactory.config`` and ``ufactory.kinematics.tcp_offset`` are
 imported, never torch/genesis. Maximum joint torques (``effort_limits_nm``, UFACTORY joint
 parameters: https://docs.supportarticle.ufactory.cc/zhHans/support_articles/hardware/ufactory-joint-parameters.html)
-are read at runtime from the upstream runtime config and are never hard-coded in UGClient
+are read at runtime from the upstream runtime config and are never hard-coded in UFClient
 (design doc §9).
 """
 
@@ -21,7 +21,7 @@ from ufactory.robots.registry import PROJECT_ROOT, ROBOT_PROFILES, get_robot_pro
 
 from .interfaces import RobotInfo
 
-#: Models supported by UGClient (doc §1): xArm only in its _1305 revision, plus UF850 and Lite6.
+#: Models supported by UFClient (doc §1): xArm only in its _1305 revision, plus UF850 and Lite6.
 SUPPORTED_KEYS: tuple[str, ...] = ("uf850", "xarm5_1305", "xarm6_1305", "xarm7_1305", "lite6")
 
 #: TCP frames defined in upstream end-effector URDFs (searched in order after composing the arm + tool).

@@ -1,7 +1,7 @@
 {
   "bundle": {
     "resources": {
-      "../../../dist-sidecar/ugclient-core/": "ugclient-core/",
+      "../../../dist-sidecar/ufclient-core/": "ufclient-core/",
       "../../../NOTICE": "NOTICE",
       "../../../LICENSE": "LICENSE"
     }

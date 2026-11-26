@@ -1,12 +1,12 @@
-# UGClient
+# UFClient
 
-**UGClient = UFACTORY Genesis Client** (formerly *Uclient*).
+**UFClient = UFACTORY Genesis Client** (formerly *UGClient* / *Uclient*).
 
-> **UGClient is currently a personal project in development. It is not an official UFACTORY product and is not affiliated with or endorsed by UFACTORY.**
+> **UFClient is currently a personal project in development. It is not an official UFACTORY product and is not affiliated with or endorsed by UFACTORY.**
 
 [中文说明](README.zh.md)
 
-UGClient is an open-source desktop client (Tauri v2 + Vue 3) for **kinematics, dynamics, 3D visualization, and optional physical arm control** of UFACTORY robot arms. It is built on [`ufactory_genesis`](https://github.com/xArm-Developer/ufactory_genesis) and [Pinocchio](https://github.com/stack-of-tasks/pinocchio). Terms and units follow UFACTORY Studio (`mm / °`, `TCP Offset`, `TCP Payload`). It starts in **simulation mode by default**, and can optionally connect to a real UFACTORY controller via `xarm-python-sdk` (default IP `192.168.1.60`); it does not do reinforcement learning.
+UFClient is an open-source desktop client (Tauri v2 + Vue 3) for **kinematics, dynamics, 3D visualization, and optional physical arm control** of UFACTORY robot arms. It is built on [`ufactory_genesis`](https://github.com/xArm-Developer/ufactory_genesis) and [Pinocchio](https://github.com/stack-of-tasks/pinocchio). Terms and units follow UFACTORY Studio (`mm / °`, `TCP Offset`, `TCP Payload`). It starts in **simulation mode by default**, and can optionally connect to a real UFACTORY controller via `xarm-python-sdk` (default IP `192.168.1.60`); it does not do reinforcement learning.
 
 Supported models: **UF850, xArm5/6/7 (`_1305` revision only), Lite6** (with Gripper G2, BIO Gripper G2, Vacuum Gripper, Robotiq 2F-85, Robotiq 2F-140, Lite6 Gripper, and Lite6 Vacuum Gripper). Platforms: **Linux** (`.deb` package) and **Windows 10+** (NSIS `*-setup.exe` installer, unsigned development builds); macOS is not supported.
 
@@ -15,7 +15,7 @@ Supported models: **UF850, xArm5/6/7 (`_1305` revision only), Lite6** (with Grip
 ## Features
 
 **Layout.** Light two-column desktop workbench:
-- **Top header:** `UGClient` title, real-robot connection pill (`Simulation · Connect robot` / active status), motion state pill, engine status pill, red `STOP` button, `⚙ Settings`, and the `中 / EN` language switch.
+- **Top header:** `UFClient` title, real-robot connection pill (`Simulation · Connect robot` / active status), motion state pill, engine status pill, red `STOP` button, `⚙ Settings`, and the `中 / EN` language switch.
 - **Left 3D stage:** top-left robot model selector, top-right collapsible frosted-glass telemetry card (TCP pose, joint angles, payload, mounting), and bottom-right `Base frame`, `TCP frame`, and `Reset view` buttons.
 - **Right sidebar:** collapsible tabbed motion panel (`Cartesian control` / `Joint control`), stacked above the `End effector`, `TCP Offset`, and `TCP Payload` cards.
 
@@ -39,7 +39,7 @@ Supported models: **UF850, xArm5/6/7 (`_1305` revision only), Lite6** (with Grip
 - **Jog:** click step for linear axes (`0.01–100 mm`) and for angular axes and joints (`0.01–45°`).
 - **Safety boundary** (saved per robot model): TCP X/Y/Z min/max in the base frame and per-joint min/max clamped inside model limits. Applies to both simulation and real-robot motion.
 - **General:** language, default robot model, and restoring the last session at startup.
-- **About:** app, `ugclient-core`, `ufactory_genesis`, Pinocchio versions, and MIT license.
+- **About:** app, `ufclient-core`, `ufactory_genesis`, Pinocchio versions, and BSD-3-Clause license.
 
 ![Settings: safety boundary](docs/images/settings.png)
 
@@ -82,14 +82,14 @@ python scripts/fetch_ufg.py
 cd apps/desktop && pnpm install && pnpm test
 
 # 3. Run the desktop app against the dev sidecar
-UGCLIENT_CORE_CMD="$PWD/../../.venv/bin/python -m ugclient_core" pnpm tauri dev
+UFCLIENT_CORE_CMD="$PWD/../../.venv/bin/python -m ufclient_core" pnpm tauri dev
 
 # 4. Package (.deb)
 cd ../.. && .venv/bin/python scripts/build_sidecar.py   # PyInstaller onedir + smoke test
 cd apps/desktop && pnpm tauri build --bundles deb --config src-tauri/tauri.bundle.conf.json
 ```
 
-You can also run the frontend in a browser: start `python -m ugclient_core`, then open `http://localhost:1420/?port=<port>&token=<token>` using the handshake line it prints.
+You can also run the frontend in a browser: start `python -m ufclient_core`, then open `http://localhost:1420/?port=<port>&token=<token>` using the handshake line it prints.
 
 ### Windows 10+
 
@@ -98,7 +98,7 @@ PyPI does not publish Windows wheels for `pin==4.0.0`, so Windows builds use `co
 ```bash
 # 1. Conda-forge environment (e.g. micromamba / conda)
 micromamba create -y -f core/environment-win.yml
-micromamba activate ugclient-win
+micromamba activate ufclient-win
 python scripts/fetch_ufg.py
 python -m pip install --no-deps "xarm-python-sdk>=1.14" -e third_party/ufactory_genesis -e core
 
@@ -115,7 +115,7 @@ pnpm tauri build --bundles nsis --config src-tauri/tauri.bundle.conf.json
 
 ```
 apps/desktop/        Vue 3 + TS + Element Plus frontend, three.js viewport, Tauri shell (src-tauri/)
-core/ugclient_core/   Python sidecar: server, api/, units.py, backend/ adapter layer
+core/ufclient_core/   Python sidecar: server, api/, units.py, backend/ adapter layer
 schema/api.v1.json   JSON-RPC API description
 scripts/             fetch_ufg.py, sync_assets.py, build_sidecar.py
 docs/DESIGN.md       Design document (Chinese)
@@ -123,4 +123,4 @@ docs/DESIGN.md       Design document (Chinese)
 
 ## License
 
-MIT © 2026 Daniel Wang. Robot model assets come from `ufactory_genesis` and its upstream xArm ROS packages; see [NOTICE](NOTICE).
+BSD-3-Clause © 2026 Daniel Wang. Robot model assets come from `ufactory_genesis` and its upstream xArm ROS packages; see [NOTICE](NOTICE).

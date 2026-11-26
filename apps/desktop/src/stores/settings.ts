@@ -14,7 +14,7 @@ import {
 } from '../lib/mounting'
 import type { RealStatus } from '../rpc/types'
 
-export const SETTINGS_KEY = 'ugclient.settings'
+export const SETTINGS_KEY = 'ufclient.settings'
 export const DEFAULT_REAL_IP = '192.168.1.60'
 export const REAL_DEFAULT_SPEED_PCT = 20
 export const DEFAULT_ROBOT = 'xarm6_1305'
@@ -67,7 +67,8 @@ const ZERO_POSE6: Pose6Tuple = [0, 0, 0, 0, 0, 0]
 
 function read(): Stored {
   try {
-    return JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') as Stored
+    const raw = localStorage.getItem(SETTINGS_KEY) ?? localStorage.getItem('ugclient.settings')
+    return JSON.parse(raw ?? '{}') as Stored
   } catch {
     return {}
   }

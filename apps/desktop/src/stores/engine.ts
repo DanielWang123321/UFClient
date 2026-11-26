@@ -19,8 +19,8 @@ export async function resolveHandshake(): Promise<Handshake | null> {
     return invoke<Handshake>('engine_handshake')
   }
   const qs = new URLSearchParams(window.location.search)
-  const port = Number(qs.get('port') ?? import.meta.env.VITE_UGCLIENT_PORT)
-  const token = qs.get('token') ?? import.meta.env.VITE_UGCLIENT_TOKEN
+  const port = Number(qs.get('port') ?? import.meta.env.VITE_UFCLIENT_PORT ?? import.meta.env.VITE_UGCLIENT_PORT)
+  const token = qs.get('token') ?? import.meta.env.VITE_UFCLIENT_TOKEN ?? import.meta.env.VITE_UGCLIENT_TOKEN
   return port && token ? { port, token } : null
 }
 

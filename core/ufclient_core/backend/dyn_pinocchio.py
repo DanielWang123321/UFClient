@@ -1,4 +1,4 @@
-"""UGClient's own payload-aware Pinocchio dynamics (doc §9).
+"""UFClient's own payload-aware Pinocchio dynamics (doc §9).
 
 Payload follows UFACTORY Studio: total tool+workpiece mass, COM relative to the flange
 (the arm's ``ee_link``). It is added to the inertia of the last joint of a copy of the

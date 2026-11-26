@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the ugclient-core sidecar with PyInstaller (--onedir) into dist-sidecar/ugclient-core/,
+"""Build the ufclient-core sidecar with PyInstaller (--onedir) into dist-sidecar/ufclient-core/,
 then smoke-test it: handshake, token auth, U1 golden case, end effectors, and real status over WebSocket."""
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 UFG = ROOT / "third_party" / "ufactory_genesis"
 EXTRA = ROOT / "build" / "sidecar-extra"
 DIST = ROOT / "dist-sidecar"
-EXE = DIST / "ugclient-core" / ("ugclient-core.exe" if sys.platform == "win32" else "ugclient-core")
+EXE = DIST / "ufclient-core" / ("ufclient-core.exe" if sys.platform == "win32" else "ufclient-core")
 
 
 def _smoke_env() -> dict[str, str]:
@@ -63,7 +63,7 @@ def build() -> None:
             str(DIST),
             "--workpath",
             str(ROOT / "build" / "pyinstaller"),
-            str(ROOT / "core" / "ugclient-core.spec"),
+            str(ROOT / "core" / "ufclient-core.spec"),
         ],
         check=True,
     )

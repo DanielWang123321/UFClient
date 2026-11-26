@@ -1,12 +1,12 @@
-# UGClient
+# UFClient
 
-**UGClient = UFACTORY Genesis Client**（原名 *Uclient*）。
+**UFClient = UFACTORY Genesis Client**（原名 *UGClient* / *Uclient*）。
 
-> **UGClient 目前是个人项目，处于开发阶段，不是 UFACTORY 官方产品，与 UFACTORY 无隶属或背书关系。**
+> **UFClient 目前是个人项目，处于开发阶段，不是 UFACTORY 官方产品，与 UFACTORY 无隶属或背书关系。**
 
 [English](README.md)
 
-UGClient 是一个开源桌面客户端（Tauri v2 + Vue 3），基于 [`ufactory_genesis`](https://github.com/xArm-Developer/ufactory_genesis) 和 [Pinocchio](https://github.com/stack-of-tasks/pinocchio)，为 UFACTORY 机械臂提供**运动学、动力学计算、3D 可视化以及可选的真机控制**。术语和单位与 UFACTORY Studio 一致（`mm / °`、`TCP Offset`、`TCP Payload`）。软件启动时默认处于**仿真模式**，也支持通过 `xarm-python-sdk` 可选连接 **UFACTORY 真机控制器**（默认 IP `192.168.1.60`）进行状态监控与受保护的运动控制；不做强化学习。
+UFClient 是一个开源桌面客户端（Tauri v2 + Vue 3），基于 [`ufactory_genesis`](https://github.com/xArm-Developer/ufactory_genesis) 和 [Pinocchio](https://github.com/stack-of-tasks/pinocchio)，为 UFACTORY 机械臂提供**运动学、动力学计算、3D 可视化以及可选的真机控制**。术语和单位与 UFACTORY Studio 一致（`mm / °`、`TCP Offset`、`TCP Payload`）。软件启动时默认处于**仿真模式**，也支持通过 `xarm-python-sdk` 可选连接 **UFACTORY 真机控制器**（默认 IP `192.168.1.60`）进行状态监控与受保护的运动控制；不做强化学习。
 
 支持机型：**UF850、xArm5/6/7（仅 `_1305` 版本）、Lite6**（支持末端：Gripper G2、BIO Gripper G2、Vacuum Gripper、Robotiq 2F-85、Robotiq 2F-140、Lite6 Gripper、Lite6 Vacuum Gripper）。平台：**Linux**（`.deb` 安装包）与 **Windows 10+**（NSIS `*-setup.exe` 安装包，未签名的开发构建）；暂不支持 macOS。
 
@@ -15,7 +15,7 @@ UGClient 是一个开源桌面客户端（Tauri v2 + Vue 3），基于 [`ufactor
 ## 功能
 
 **界面布局。** 浅色双栏桌面工作台：
-- **顶部工具栏**：`UGClient` 标题、真机连接入口（`仿真模式 · 连接真机` / 当前连接状态）、运动状态徽标、引擎状态徽标、红色 `STOP` 按钮、`⚙ 设置` 与 `中 / EN` 语言切换。
+- **顶部工具栏**：`UFClient` 标题、真机连接入口（`仿真模式 · 连接真机` / 当前连接状态）、运动状态徽标、引擎状态徽标、红色 `STOP` 按钮、`⚙ 设置` 与 `中 / EN` 语言切换。
 - **左侧 3D 舞台**：左上角机型下拉选择、右上角可折叠磨砂卡片（实时显示 TCP 位姿、关节角度、负载质量与安装方式）、右下角 `基坐标系` / `TCP 坐标系` / `复位视角` 按钮。
 - **右侧侧栏**：可折叠的双选项卡运动控制面板（`笛卡尔控制` / `关节控制`），下方依次为 `末端工具`、`TCP Offset` 与 `TCP Payload` 配置卡片。
 
@@ -39,7 +39,7 @@ UGClient 是一个开源桌面客户端（Tauri v2 + Vue 3），基于 [`ufactor
 - **点动**：直线单击步长（`0.01–100 mm`）和角度单击步长（`0.01–45°`，用于关节和 RPY）。
 - **安全边界**（按机型分别保存）：基坐标系下 TCP X/Y/Z 范围与各关节范围（限制在机型限位以内），同时约束仿真与真机运动。
 - **通用**：语言、默认机型、启动时恢复上次配置。
-- **关于**：应用、计算引擎、`ufactory_genesis`、Pinocchio 版本与 MIT 许可证。
+- **关于**：应用、计算引擎、`ufactory_genesis`、Pinocchio 版本与 BSD-3-Clause 许可证。
 
 ![设置：安全边界](docs/images/settings.png)
 
@@ -82,14 +82,14 @@ python scripts/fetch_ufg.py
 cd apps/desktop && pnpm install && pnpm test
 
 # 3. 用开发版引擎运行桌面应用
-UGCLIENT_CORE_CMD="$PWD/../../.venv/bin/python -m ugclient_core" pnpm tauri dev
+UFCLIENT_CORE_CMD="$PWD/../../.venv/bin/python -m ufclient_core" pnpm tauri dev
 
 # 4. 打包（.deb）
 cd ../.. && .venv/bin/python scripts/build_sidecar.py
 cd apps/desktop && pnpm tauri build --bundles deb --config src-tauri/tauri.bundle.conf.json
 ```
 
-也可以直接在浏览器中调试前端：先启动 `python -m ugclient_core`，再用输出中的端口和 token 打开 `http://localhost:1420/?port=<port>&token=<token>`。
+也可以直接在浏览器中调试前端：先启动 `python -m ufclient_core`，再用输出中的端口和 token 打开 `http://localhost:1420/?port=<port>&token=<token>`。
 
 ### Windows 10+
 
@@ -98,7 +98,7 @@ cd apps/desktop && pnpm tauri build --bundles deb --config src-tauri/tauri.bundl
 ```bash
 # 1. 创建 conda-forge 环境（推荐 micromamba / conda）
 micromamba create -y -f core/environment-win.yml
-micromamba activate ugclient-win
+micromamba activate ufclient-win
 python scripts/fetch_ufg.py
 python -m pip install --no-deps "xarm-python-sdk>=1.14" -e third_party/ufactory_genesis -e core
 
@@ -115,7 +115,7 @@ pnpm tauri build --bundles nsis --config src-tauri/tauri.bundle.conf.json
 
 ```
 apps/desktop/        Vue 3 + TS + Element Plus 前端、three.js 视口与 Tauri 壳（src-tauri/）
-core/ugclient_core/   Python 引擎：server、api/、units.py、backend/ 适配层
+core/ufclient_core/   Python 引擎：server、api/、units.py、backend/ 适配层
 schema/api.v1.json   JSON-RPC 接口描述
 scripts/             fetch_ufg.py、sync_assets.py、build_sidecar.py
 docs/DESIGN.md       设计文档
@@ -123,4 +123,4 @@ docs/DESIGN.md       设计文档
 
 ## 许可证
 
-MIT © 2026 Daniel Wang。机器人模型资源来自 `ufactory_genesis` 及其上游 xArm ROS 描述包，详见 [NOTICE](NOTICE)。
+BSD-3-Clause © 2026 Daniel Wang。机器人模型资源来自 `ufactory_genesis` 及其上游 xArm ROS 描述包，详见 [NOTICE](NOTICE)。

@@ -21,7 +21,7 @@ const settings = useSettingsStore()
 const activePage = ref<AppPage>('live')
 const lastPrimaryPage = ref<Exclude<AppPage, 'settings'>>('live')
 const elLocale = computed(() => (locale.value === 'zh' ? zhCn : enLocale))
-watch(locale, (l) => localStorage.setItem('ugclient.locale', l))
+watch(locale, (l) => localStorage.setItem('ufclient.locale', l))
 
 function selectPage(page: AppPage) {
   motion.stop()

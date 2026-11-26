@@ -112,7 +112,10 @@ describe('SettingsView secondary page & sub-pages', () => {
 
     await wrapper.find('[data-test="settings-nav-general"]').trigger('click')
     expect(wrapper.find('[data-test="settings-page-general"]').exists()).toBe(true)
-    expect(wrapper.find('[data-test="settings-page-general"]').text()).toContain('0.3.2')
+    const generalText = wrapper.find('[data-test="settings-page-general"]').text()
+    expect(generalText).toContain('0.3.2')
+    expect(generalText).toContain('ufclient-core')
+    expect(generalText).toContain('BSD-3-Clause')
 
     await wrapper.find('[data-test="settings-nav-device"]').trigger('click')
     expect(wrapper.find('[data-test="settings-page-device"]').exists()).toBe(true)

@@ -1,4 +1,4 @@
-name: ugclient-win
+name: ufclient-win
 channels:
   - conda-forge
   - nodefaults
