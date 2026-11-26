@@ -127,18 +127,19 @@ describe('SettingsView secondary page & sub-pages', () => {
     wrapper.unmount()
   })
 
-  it('updates Mounting presets in simulation mode and syncs RobotPanel & StageTelemetry without any real.* calls', async () => {
+  it('updates Mounting presets in simulation mode and omits mounting display in RobotPanel & StageTelemetry without any real.* calls', async () => {
     const settings = useSettingsStore()
     const wrapper = mount(SettingsView, { attachTo: document.body, global: { plugins: [i18n] } })
     const robotPanel = mount(RobotPanel, { global: { plugins: [i18n] } })
     const telemetry = mount(StageTelemetry, { global: { plugins: [i18n] } })
 
+    expect(robotPanel.find('[data-test="robot-mounting"]').exists()).toBe(false)
     expect(telemetry.find('[data-test="telemetry-mounting"]').exists()).toBe(false)
 
     await wrapper.find('[data-test="mount-ceiling"]').trigger('click')
     await flushPromises()
     expect(settings.mounting).toEqual({ preset: 'ceiling', tiltDeg: 180, rotateDeg: 0 })
-    expect(robotPanel.find('[data-test="robot-mounting"]').text()).toBe('Ceiling')
+    expect(robotPanel.find('[data-test="robot-mounting"]').exists()).toBe(false)
     expect(telemetry.find('[data-test="telemetry-mounting"]').exists()).toBe(false)
     expect(wrapper.find('[data-test="mount-rotate"]').find('input').attributes('disabled')).toBeDefined()
 

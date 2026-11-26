@@ -242,12 +242,12 @@ const tcpCells = computed(() => [
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #d97706;
+  background: var(--uc-ok);
   flex: none;
 }
 
 .real-dot.live {
-  background: #ea580c;
+  background: var(--uc-ok);
 }
 
 .real-dot.fault {

@@ -150,6 +150,7 @@ describe('AppHeader, gripper kinematics & RobotPanel controls', () => {
     const wrapper = mount(RobotPanel, { attachTo: document.body, global: { plugins: [i18n] } })
 
     expect(wrapper.find('.hint').exists()).toBe(false)
+    expect(wrapper.find('[data-test="robot-mounting"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('末端只用于显示')
     expect(wrapper.text()).not.toContain('End effector is visual only')
     expect(wrapper.find('[data-test="gripper-ctrl"]').exists()).toBe(false)

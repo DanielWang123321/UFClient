@@ -6,7 +6,6 @@ import { useRobotStore } from '../stores/robot'
 import { useMotionStore } from '../stores/motion'
 import { useSettingsStore } from '../stores/settings'
 import { useRealStore } from '../stores/real'
-import { formatMountingLabel } from '../lib/mounting'
 import { GRIPPER_SPECS, isControllableGripper, type GripperState } from '../lib/gripper'
 
 const { t } = useI18n()
@@ -97,10 +96,6 @@ async function onEnableGripper() {
             :value="e"
           />
         </el-select>
-      </div>
-      <div class="tool-row">
-        <label>{{ $t('robot.mounting') }}</label>
-        <span class="ro-val" data-test="robot-mounting">{{ formatMountingLabel(settings.mounting, t) }}</span>
       </div>
 
       <div v-if="activeGripper && activeSpec && activeState" class="gripper-ctrl" data-test="gripper-ctrl">
@@ -266,12 +261,6 @@ async function onEnableGripper() {
   font-size: 11.5px;
   font-weight: 600;
   color: var(--uc-ink-muted);
-}
-.ro-val {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--uc-ink);
-  justify-self: end;
 }
 .gripper-ctrl {
   display: grid;

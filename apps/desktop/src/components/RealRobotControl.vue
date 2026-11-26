@@ -188,15 +188,11 @@ async function onClearError() {
   opacity: 0.55;
   cursor: not-allowed;
 }
-.real-pill.monitor {
-  background: #fffbeb;
-  border-color: #f59e0b;
-  color: #92400e;
-}
+.real-pill.monitor,
 .real-pill.live {
-  background: #fff7ed;
-  border-color: #ea580c;
-  color: #9a3412;
+  background: #f0fdf4;
+  border-color: var(--uc-ok);
+  color: #166534;
 }
 .real-pill.fault {
   background: #fef2f2;
@@ -210,8 +206,10 @@ async function onClearError() {
   background: #64748b;
   flex: none;
 }
-.real-pill.monitor .real-dot { background: #d97706; }
-.real-pill.live .real-dot { background: #ea580c; }
+.real-pill.monitor .real-dot,
+.real-pill.live .real-dot {
+  background: var(--uc-ok);
+}
 .real-pill.fault .real-dot { background: var(--uc-danger); }
 
 .real-body {

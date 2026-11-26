@@ -24,7 +24,6 @@
     "toolTitle": "End effector",
     "model": "Model",
     "endEffector": "End effector",
-    "mounting": "Mounting",
     "floor": "Floor",
     "none": "None",
     "lockedReal": "Robot model is locked to the connected physical controller."

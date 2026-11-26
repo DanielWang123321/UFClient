@@ -24,7 +24,6 @@
     "toolTitle": "末端工具",
     "model": "型号",
     "endEffector": "末端执行器",
-    "mounting": "安装",
     "floor": "地面",
     "none": "无",
     "lockedReal": "真机连接中，机型已自动锁定为当前控制器型号。"
