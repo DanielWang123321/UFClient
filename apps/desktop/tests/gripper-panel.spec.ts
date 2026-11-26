@@ -119,11 +119,13 @@ describe('AppHeader, gripper kinematics & RobotPanel controls', () => {
     await useRobotStore().load('xarm6_1305', 'none')
   })
 
-  it('renders UFClient logo, centers RealRobotControl, and omits sim-state pill in AppHeader', () => {
+  it('renders UFClient logo, centers RealRobotControl, and omits sim-state/engine pills in AppHeader', () => {
     const header = mount(AppHeader, { global: { plugins: [i18n] } })
     expect(header.find('[data-test="app-logo"]').text()).toBe('UFClient')
     expect(header.find('[data-test="header-center"] [data-test="real-trigger"]').exists()).toBe(true)
     expect(header.find('.header-right [data-test="real-trigger"]').exists()).toBe(false)
+    expect(header.find('[data-test="engine-status"]').exists()).toBe(false)
+    expect(header.find('.engine-pill').exists()).toBe(false)
     expect(header.find('[data-test="sim-state"]').exists()).toBe(false)
     expect(header.find('.sim-pill').exists()).toBe(false)
     expect(header.find('.sim-dot').exists()).toBe(false)
@@ -147,6 +149,9 @@ describe('AppHeader, gripper kinematics & RobotPanel controls', () => {
     const robot = useRobotStore()
     const wrapper = mount(RobotPanel, { attachTo: document.body, global: { plugins: [i18n] } })
 
+    expect(wrapper.find('.hint').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('末端只用于显示')
+    expect(wrapper.text()).not.toContain('End effector is visual only')
     expect(wrapper.find('[data-test="gripper-ctrl"]').exists()).toBe(false)
 
     await robot.select('xarm6_1305', 'vacuum_gripper')

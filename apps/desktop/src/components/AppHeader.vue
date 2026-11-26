@@ -1,16 +1,12 @@
 <script setup lang="ts">
-// Slim 48px workspace header: branding, real-robot & engine status, STOP, language.
-import { inject } from 'vue'
+// Slim 48px workspace header: branding, real-robot status center, STOP, language.
 import { useI18n } from 'vue-i18n'
-import { useEngineStore } from '../stores/engine'
 import { useMotionStore } from '../stores/motion'
 import AppLogo from './AppLogo.vue'
 import RealRobotControl from './RealRobotControl.vue'
 
 const { locale } = useI18n()
-const engine = useEngineStore()
 const motion = useMotionStore()
-const retry = inject<() => void>('engine.retry', () => {})
 </script>
 
 <template>
@@ -27,17 +23,6 @@ const retry = inject<() => void>('engine.retry', () => {})
     </div>
 
     <div class="header-right">
-      <div
-        class="engine-pill"
-        :title="engine.error || (engine.hello ? `core ${engine.hello.core_version} / ufactory_genesis ${engine.hello.ufactory_genesis_commit} / pinocchio ${engine.hello.pinocchio_version}` : '')"
-      >
-        <span class="eng-dot" :class="engine.status" />
-        <span data-test="engine-status">{{ $t(`engine.${engine.status}`) }}</span>
-        <button v-if="engine.status === 'error'" type="button" class="retry-lnk" @click="retry">
-          {{ $t('engine.retry') }}
-        </button>
-      </div>
-
       <button type="button" class="stop-btn" data-test="stop" @click="motion.stop()">STOP</button>
 
       <div class="lang-seg" data-test="lang-switch">
@@ -85,39 +70,6 @@ const retry = inject<() => void>('engine.retry', () => {})
   align-items: center;
   gap: 4px;
 }
-.engine-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 4px 9px;
-  border-radius: 3px;
-  border: 1px solid var(--uc-border);
-  background: var(--uc-surface-muted);
-  color: var(--uc-ink);
-  white-space: nowrap;
-}
-.eng-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #94a3b8;
-  flex: none;
-}
-.eng-dot.connected { background: #16a34a; }
-.eng-dot.connecting { background: #d97706; }
-.eng-dot.error { background: var(--uc-danger); }
-.retry-lnk {
-  border: 0;
-  background: none;
-  padding: 0;
-  margin-left: 2px;
-  color: var(--uc-primary);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
 .stop-btn {
   border: 0;
   border-radius: 3px;
@@ -161,9 +113,6 @@ const retry = inject<() => void>('engine.retry', () => {})
   .app-header {
     display: flex;
     justify-content: space-between;
-  }
-  .engine-pill {
-    display: none;
   }
 }
 </style>

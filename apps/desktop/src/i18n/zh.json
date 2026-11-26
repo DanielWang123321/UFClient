@@ -27,7 +27,6 @@
     "mounting": "安装",
     "floor": "地面",
     "none": "无",
-    "eeHint": "末端只用于显示和默认 TCP，质量请在 TCP Payload 中设置。",
     "lockedReal": "真机连接中，机型已自动锁定为当前控制器型号。"
   },
   "gripper": {

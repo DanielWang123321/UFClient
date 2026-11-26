@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Main 3D stage with top-left model selector, top-center non-blocking notices,
 // top-right frosted telemetry, and bottom-right frame/view actions.
-import { markRaw, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, markRaw, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { SceneController } from '../three/SceneController'
 import { robotDisplayName, useRobotStore } from '../stores/robot'
 import { useMotionStore } from '../stores/motion'
@@ -37,15 +37,21 @@ function load() {
   })
 }
 
-async function onSelectModel(e: Event) {
-  const nextKey = (e.target as HTMLSelectElement).value
-  if (nextKey === robot.key) return
+async function selectModel(nextKey: string) {
+  if (!nextKey || nextKey === robot.key) return
   motion.stop()
   motion.clearNotice()
   const targetSpec = robot.robots.find((r) => r.key === nextKey)
   const compatibleEe = targetSpec?.end_effectors.includes(robot.endEffector) ? robot.endEffector : 'none'
   await robot.select(nextKey, compatibleEe)
 }
+
+const selectedRobotKey = computed({
+  get: () => robot.key,
+  set: (nextKey: string) => {
+    void selectModel(nextKey)
+  },
+})
 
 function syncGripper(immediate = false) {
   if (!ctl || !isControllableGripper(robot.endEffector)) return
@@ -111,13 +117,15 @@ watch(show, (s) => {
         <template #model>
           <label class="visually-hidden" for="robot-select">{{ $t('robot.model') }}</label>
           <select
-            id="robot-select" class="in-real-card" :value="robot.key"
+            id="robot-select" v-model="selectedRobotKey" class="in-real-card"
             :disabled="robot.robots.length === 0 || real.connected"
             :title="$t('robot.lockedReal')"
-            data-test="robot-select" @change="onSelectModel"
+            data-test="robot-select"
           >
-            <option v-if="robot.robots.length === 0" :value="robot.key">{{ robotDisplayName(robot.key) }}</option>
-            <option v-for="r in robot.robots" :key="r.key" :value="r.key">
+            <option v-if="robot.robots.length === 0" :value="robot.key" selected>
+              {{ robotDisplayName(robot.key) }}
+            </option>
+            <option v-for="r in robot.robots" :key="r.key" :value="r.key" :selected="r.key === robot.key">
               {{ robotDisplayName(r.key, r.robot_name) }}
             </option>
           </select>
@@ -126,12 +134,15 @@ watch(show, (s) => {
       <div v-else class="robot-models">
         <label class="visually-hidden" for="robot-select">{{ $t('robot.model') }}</label>
         <select
-          id="robot-select" :value="robot.key" :disabled="robot.robots.length === 0 || real.connected"
+          id="robot-select" v-model="selectedRobotKey"
+          :disabled="robot.robots.length === 0 || real.connected"
           :title="real.connected ? $t('robot.lockedReal') : undefined"
-          data-test="robot-select" @change="onSelectModel"
+          data-test="robot-select"
         >
-          <option v-if="robot.robots.length === 0" :value="robot.key">{{ robotDisplayName(robot.key) }}</option>
-          <option v-for="r in robot.robots" :key="r.key" :value="r.key">
+          <option v-if="robot.robots.length === 0" :value="robot.key" selected>
+            {{ robotDisplayName(robot.key) }}
+          </option>
+          <option v-for="r in robot.robots" :key="r.key" :value="r.key" :selected="r.key === robot.key">
             {{ robotDisplayName(r.key, r.robot_name) }}
           </option>
         </select>

@@ -227,8 +227,6 @@ async function onEnableGripper() {
           {{ real.gripperError }}
         </div>
       </div>
-
-      <div class="hint">{{ $t('robot.eeHint') }}</div>
     </div>
   </section>
 </template>

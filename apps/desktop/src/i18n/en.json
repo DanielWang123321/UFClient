@@ -27,7 +27,6 @@
     "mounting": "Mounting",
     "floor": "Floor",
     "none": "None",
-    "eeHint": "End effector is visual only; set its mass in TCP Payload.",
     "lockedReal": "Robot model is locked to the connected physical controller."
   },
   "gripper": {
