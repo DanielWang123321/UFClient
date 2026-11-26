@@ -6,7 +6,10 @@ import AppHeader from '../src/components/AppHeader.vue'
 import RobotPanel from '../src/components/RobotPanel.vue'
 import {
   GRIPPER_SPECS,
+  gripperDriveRatePerSec,
   gripperPosToDriveValue,
+  gripperSpeedMmPerSec,
+  stepGripperValue,
   type SupportedGripper,
 } from '../src/lib/gripper'
 import { i18n } from '../src/i18n'
@@ -240,5 +243,44 @@ describe('AppHeader, gripper kinematics & RobotPanel controls', () => {
     expect(wrapper.find('[data-test="gripper-enable"]').attributes('disabled')).toBeDefined()
 
     wrapper.unmount()
+  })
+
+  it('estimates physical gripper speeds and steps 3D drive joint motion smoothly without teleporting', () => {
+    const driveSpan = (ee: SupportedGripper) =>
+      Math.abs(GRIPPER_SPECS[ee].urdfDrive.closeValue - GRIPPER_SPECS[ee].urdfDrive.openValue)
+
+    // Robotiq 2F-85: 85mm stroke, 20..150 mm/s -> full stroke ~0.567s (255), ~1.0s (128), 4.25s (0)
+    expect(gripperSpeedMmPerSec('robotiq_2f_85', 255)).toBeCloseTo(150, 5)
+    expect(gripperSpeedMmPerSec('robotiq_2f_85', 0)).toBeCloseTo(20, 5)
+    expect(driveSpan('robotiq_2f_85') / gripperDriveRatePerSec('robotiq_2f_85', 255)).toBeCloseTo(85 / 150, 3)
+    expect(driveSpan('robotiq_2f_85') / gripperDriveRatePerSec('robotiq_2f_85', 128)).toBeCloseTo(1.0, 1)
+    expect(driveSpan('robotiq_2f_85') / gripperDriveRatePerSec('robotiq_2f_85', 0)).toBeCloseTo(4.25, 3)
+
+    // Robotiq 2F-140: 140mm stroke, 30..250 mm/s -> full stroke 0.56s (255), ~4.67s (0)
+    expect(driveSpan('robotiq_2f_140') / gripperDriveRatePerSec('robotiq_2f_140', 255)).toBeCloseTo(0.56, 3)
+    expect(driveSpan('robotiq_2f_140') / gripperDriveRatePerSec('robotiq_2f_140', 0)).toBeCloseTo(140 / 30, 3)
+
+    // Gripper G2 & BIO Gripper G2 rates scale monotonically with configured speed
+    expect(gripperDriveRatePerSec('gripper_g2', 225)).toBeGreaterThan(gripperDriveRatePerSec('gripper_g2', 100))
+    expect(gripperDriveRatePerSec('gripper_g2', 100)).toBeGreaterThan(gripperDriveRatePerSec('gripper_g2', 15))
+    expect(gripperDriveRatePerSec('bio_gripper_g2', 4000)).toBeGreaterThan(gripperDriveRatePerSec('bio_gripper_g2', 2000))
+    expect(gripperDriveRatePerSec('bio_gripper_g2', 2000)).toBeGreaterThan(gripperDriveRatePerSec('bio_gripper_g2', 500))
+
+    // Frame stepper advances gradually, clamps cleanly at target, and supports mid-stroke reversal
+    const rate = gripperDriveRatePerSec('robotiq_2f_85', 128)
+    const targetClose = GRIPPER_SPECS.robotiq_2f_85.urdfDrive.closeValue
+    const targetOpen = GRIPPER_SPECS.robotiq_2f_85.urdfDrive.openValue
+
+    const step1 = stepGripperValue(targetOpen, targetClose, rate, 0.1)
+    expect(step1).toBeGreaterThan(targetOpen)
+    expect(step1).toBeLessThan(targetClose)
+    expect(step1).toBeCloseTo(rate * 0.1, 6)
+
+    const reversed = stepGripperValue(step1, targetOpen, rate, 0.05)
+    expect(reversed).toBeGreaterThan(targetOpen)
+    expect(reversed).toBeLessThan(step1)
+    expect(reversed).toBeCloseTo(step1 - rate * 0.05, 6)
+
+    expect(stepGripperValue(targetOpen, targetClose, rate, 10)).toBe(targetClose)
   })
 })

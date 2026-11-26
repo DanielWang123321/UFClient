@@ -113,7 +113,9 @@
     "errAlign": "无法在关节限位内调平末端；已保留当前姿态。",
     "errBoundary": "{axis} 已到达安全边界（{side} {limit}）。",
     "min": "最小",
-    "max": "最大"
+    "max": "最大",
+    "expandPanel": "展开运动控制",
+    "collapsePanel": "收起运动控制"
   },
   "info": {
     "state": "状态",

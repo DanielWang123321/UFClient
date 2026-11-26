@@ -74,6 +74,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding-right: 2px;
 }
 .sidebar-content {
@@ -101,6 +102,7 @@ onBeforeUnmount(() => {
   }
   .control-shell {
     overflow: visible;
+    scrollbar-gutter: auto;
     padding-right: 0;
   }
 }

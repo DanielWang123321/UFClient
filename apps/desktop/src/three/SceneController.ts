@@ -5,6 +5,7 @@ import type { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
 import URDFLoader, { type URDFRobot } from 'urdf-loader'
 import { createRobotDracoLoader } from './draco'
+import { stepGripperValue } from '../lib/gripper'
 
 export /** Camera distance factor for the robot framing (smaller = closer). */
 const VIEW_FIT = 0.9
@@ -90,6 +91,8 @@ export class SceneController {
   private draco: DRACOLoader
   private loadSeq = 0
   private hasFramed = false
+  private gripperAnim: { joint: string; current: number; target: number; ratePerSec: number; lastTs: number } | null =
+    null
   onLoaded: (ok: boolean, err?: unknown) => void = () => {}
 
   constructor(private host: HTMLElement) {
@@ -179,6 +182,7 @@ export class SceneController {
     options: { armJointNames?: readonly string[]; resetCamera?: boolean } = {},
   ) {
     this.eeLink = eeLink
+    this.gripperAnim = null
     const seq = ++this.loadSeq
     if (this.robot) {
       this.tcpAxes.removeFromParent()
@@ -265,8 +269,34 @@ export class SceneController {
   }
 
   setGripperJoint(jointName: string, value: number) {
+    this.gripperAnim = { joint: jointName, current: value, target: value, ratePerSec: 0, lastTs: 0 }
     if (!this.robot) return
     this.robot.setJointValue(jointName, value)
+    this.requestRender()
+  }
+
+  animateGripperJoint(jointName: string, targetValue: number, ratePerSec: number) {
+    if (!this.robot) return
+    let current = targetValue
+    if (this.gripperAnim?.joint === jointName) {
+      current = this.gripperAnim.current
+    } else {
+      const joint = this.robot.joints[jointName]
+      if (joint && typeof joint.angle === 'number' && Number.isFinite(joint.angle)) {
+        current = joint.angle
+      }
+    }
+    if (Math.abs(targetValue - current) < 1e-6 || ratePerSec <= 0) {
+      this.setGripperJoint(jointName, targetValue)
+      return
+    }
+    this.gripperAnim = {
+      joint: jointName,
+      current,
+      target: targetValue,
+      ratePerSec,
+      lastTs: performance.now(),
+    }
     this.requestRender()
   }
 
@@ -288,10 +318,22 @@ export class SceneController {
   requestRender() {
     if (this.renderRequested) return
     this.renderRequested = true
-    requestAnimationFrame(() => {
+    requestAnimationFrame((now) => {
       this.renderRequested = false
+      const anim = this.gripperAnim
+      if (this.robot && anim && anim.current !== anim.target) {
+        const dt = Math.min(0.1, (now - anim.lastTs) / 1000)
+        anim.lastTs = now
+        if (dt > 0) {
+          anim.current = stepGripperValue(anim.current, anim.target, anim.ratePerSec, dt)
+          this.robot.setJointValue(anim.joint, anim.current)
+        }
+      }
       this.controls.update()
       this.renderer.render(this.scene, this.camera)
+      if (this.robot && anim && anim.current !== anim.target) {
+        this.requestRender()
+      }
     })
   }
 
@@ -332,6 +374,7 @@ export class SceneController {
   }
 
   dispose() {
+    this.gripperAnim = null
     this.resizeObs?.disconnect()
     this.controls.dispose()
     if (this.robot) this.disposeObject(this.robot)

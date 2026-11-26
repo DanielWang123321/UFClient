@@ -6,7 +6,12 @@ import { SceneController } from '../three/SceneController'
 import { robotDisplayName, useRobotStore } from '../stores/robot'
 import { useMotionStore } from '../stores/motion'
 import { useRealStore } from '../stores/real'
-import { GRIPPER_SPECS, gripperPosToDriveValue, isControllableGripper } from '../lib/gripper'
+import {
+  GRIPPER_SPECS,
+  gripperDriveRatePerSec,
+  gripperPosToDriveValue,
+  isControllableGripper,
+} from '../lib/gripper'
 import StageTelemetry from './StageTelemetry.vue'
 import StageRealInfo from './StageRealInfo.vue'
 import StageNotices from './StageNotices.vue'
@@ -42,11 +47,17 @@ async function onSelectModel(e: Event) {
   await robot.select(nextKey, compatibleEe)
 }
 
-function syncGripper() {
+function syncGripper(immediate = false) {
   if (!ctl || !isControllableGripper(robot.endEffector)) return
   const ee = robot.endEffector
-  const val = gripperPosToDriveValue(ee, robot.gripperStates[ee].pos)
-  ctl.setGripperJoint(GRIPPER_SPECS[ee].urdfDrive.joint, val)
+  const stateVal = robot.gripperStates[ee]
+  const targetVal = gripperPosToDriveValue(ee, stateVal.pos)
+  const joint = GRIPPER_SPECS[ee].urdfDrive.joint
+  if (immediate) {
+    ctl.setGripperJoint(joint, targetVal)
+  } else {
+    ctl.animateGripperJoint(joint, targetVal, gripperDriveRatePerSec(ee, stateVal.speed))
+  }
 }
 
 onMounted(() => {
@@ -56,7 +67,7 @@ onMounted(() => {
     if (ok && ctl && robot.info) {
       ctl.setJoints(robot.info.joint_names, robot.q)
       ctl.setTcp(robot.tcpOffset)
-      syncGripper()
+      syncGripper(true)
       ctl.setVisible('base', show.value.base)
       ctl.setVisible('tcp', show.value.tcp)
     }
@@ -80,8 +91,9 @@ watch(
   [
     () => robot.endEffector,
     () => (isControllableGripper(robot.endEffector) ? robot.gripperStates[robot.endEffector].pos : null),
+    () => (isControllableGripper(robot.endEffector) ? robot.gripperStates[robot.endEffector].speed : null),
   ],
-  () => syncGripper(),
+  () => syncGripper(false),
 )
 watch(() => robot.tcpOffset, (o) => ctl?.setTcp(o))
 watch(show, (s) => {

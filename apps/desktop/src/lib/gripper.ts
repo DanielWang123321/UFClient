@@ -1,4 +1,4 @@
-// Parameter specifications & 3D URDF drive-joint mappings for controllable grippers.
+// Parameter specifications, physical speed estimation & 3D URDF drive-joint mappings for controllable grippers.
 export type SupportedGripper = 'robotiq_2f_85' | 'robotiq_2f_140' | 'gripper_g2' | 'bio_gripper_g2'
 
 export interface GripperAxisSpec {
@@ -18,6 +18,11 @@ export interface GripperSpec {
   pos: GripperPosSpec
   speed: GripperAxisSpec
   force: GripperAxisSpec
+  strokeMm: number
+  speedMmPerSec: {
+    min: number
+    max: number
+  }
   urdfDrive: {
     joint: string
     openValue: number
@@ -36,6 +41,8 @@ export const GRIPPER_SPECS: Record<SupportedGripper, GripperSpec> = {
     pos: { min: 0, max: 255, step: 1, default: 0, open: 0, close: 255, unit: '' },
     speed: { min: 0, max: 255, step: 1, default: 128, unit: '' },
     force: { min: 0, max: 255, step: 1, default: 128, unit: '' },
+    strokeMm: 85,
+    speedMmPerSec: { min: 20, max: 150 },
     urdfDrive: {
       joint: 'robotiq_2f_85_drive_joint',
       openValue: 0.0,
@@ -46,6 +53,8 @@ export const GRIPPER_SPECS: Record<SupportedGripper, GripperSpec> = {
     pos: { min: 0, max: 255, step: 1, default: 0, open: 0, close: 255, unit: '' },
     speed: { min: 0, max: 255, step: 1, default: 128, unit: '' },
     force: { min: 0, max: 255, step: 1, default: 128, unit: '' },
+    strokeMm: 140,
+    speedMmPerSec: { min: 30, max: 250 },
     urdfDrive: {
       joint: 'robotiq_2f_140_drive_joint',
       openValue: 0.0038593285902723817,
@@ -56,6 +65,8 @@ export const GRIPPER_SPECS: Record<SupportedGripper, GripperSpec> = {
     pos: { min: 0, max: 84, step: 1, default: 84, open: 84, close: 0, unit: 'mm' },
     speed: { min: 15, max: 225, step: 1, default: 100, unit: 'mm/s' },
     force: { min: 1, max: 100, step: 1, default: 50, unit: '%' },
+    strokeMm: 84,
+    speedMmPerSec: { min: 15, max: 225 },
     urdfDrive: {
       joint: 'drive_joint',
       openValue: 0.057210812728026743,
@@ -66,6 +77,8 @@ export const GRIPPER_SPECS: Record<SupportedGripper, GripperSpec> = {
     pos: { min: 71, max: 150, step: 1, default: 150, open: 150, close: 71, unit: 'mm' },
     speed: { min: 500, max: 4000, step: 100, default: 2000, unit: 'pulse/s' },
     force: { min: 1, max: 100, step: 1, default: 50, unit: '%' },
+    strokeMm: 79,
+    speedMmPerSec: { min: 20, max: 150 },
     urdfDrive: {
       joint: 'bio_gripper_g2_right_finger_joint',
       openValue: 0.0395,
@@ -117,4 +130,31 @@ export function gripperPosToDriveValue(ee: SupportedGripper, pos: number): numbe
   if (span === 0) return spec.urdfDrive.openValue
   const ratioClosed = (clamped - spec.pos.open) / span
   return spec.urdfDrive.openValue + ratioClosed * (spec.urdfDrive.closeValue - spec.urdfDrive.openValue)
+}
+
+/** Estimated linear jaw speed (mm/s) for the configured UI/SDK speed setting. */
+export function gripperSpeedMmPerSec(ee: SupportedGripper, speed: number): number {
+  const spec = GRIPPER_SPECS[ee]
+  const clamped = clampGripperValue(spec.speed, speed)
+  const span = spec.speed.max - spec.speed.min
+  if (span <= 0) return spec.speedMmPerSec.min
+  const ratio = (clamped - spec.speed.min) / span
+  return spec.speedMmPerSec.min + ratio * (spec.speedMmPerSec.max - spec.speedMmPerSec.min)
+}
+
+/** Estimated URDF drive joint angular/linear speed (rad/s or m/s) for 3D preview interpolation. */
+export function gripperDriveRatePerSec(ee: SupportedGripper, speed: number): number {
+  const spec = GRIPPER_SPECS[ee]
+  const driveSpan = Math.abs(spec.urdfDrive.closeValue - spec.urdfDrive.openValue)
+  if (spec.strokeMm <= 0 || driveSpan <= 0) return 0
+  return (gripperSpeedMmPerSec(ee, speed) / spec.strokeMm) * driveSpan
+}
+
+/** Advance a drive joint value toward target by at most ratePerSec * dtSec. */
+export function stepGripperValue(current: number, target: number, ratePerSec: number, dtSec: number): number {
+  if (ratePerSec <= 0 || dtSec <= 0) return target
+  const delta = target - current
+  const maxStep = ratePerSec * dtSec
+  if (Math.abs(delta) <= maxStep) return target
+  return current + Math.sign(delta) * maxStep
 }

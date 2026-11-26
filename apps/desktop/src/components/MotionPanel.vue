@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Right-side tabbed motion control card (Cartesian / Joint) with per-tab collapse state.
-import { computed, onBeforeUnmount, reactive, ref } from 'vue'
+// Right-side tabbed motion control card (Cartesian / Joint) with unified collapse state.
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRobotStore } from '../stores/robot'
 import { useMotionStore } from '../stores/motion'
@@ -18,9 +18,7 @@ const real = useRealStore()
 const { activeId, down, up, cancel, key, abortAll } = usePressHold()
 
 const activeTab = ref<ControlTab>('cartesian')
-const collapsedTabs = reactive<Record<ControlTab, boolean>>({ cartesian: false, joint: false })
-
-const isCollapsed = computed(() => collapsedTabs[activeTab.value])
+const isCollapsed = ref(false)
 const busy = computed(() => !robot.sessionId || (real.connected && !real.canMove))
 const realGuardHint = computed(() => {
   if (!real.connected) return ''
@@ -28,12 +26,7 @@ const realGuardHint = computed(() => {
   if (!real.enabled) return t('real.needEnableHint')
   return ''
 })
-const collapseLabel = computed(() => {
-  if (activeTab.value === 'joint') {
-    return t(isCollapsed.value ? 'motion.expandJoint' : 'motion.collapseJoint')
-  }
-  return t(isCollapsed.value ? 'motion.expandCartesian' : 'motion.collapseCartesian')
-})
+const collapseLabel = computed(() => t(isCollapsed.value ? 'motion.expandPanel' : 'motion.collapsePanel'))
 
 function setTab(tab: ControlTab) {
   if (activeTab.value === tab) return
@@ -45,7 +38,7 @@ function setTab(tab: ControlTab) {
 function toggleCollapse() {
   abortAll()
   motion.stop()
-  collapsedTabs[activeTab.value] = !collapsedTabs[activeTab.value]
+  isCollapsed.value = !isCollapsed.value
 }
 
 function onSpeedInput(e: Event) {
@@ -99,7 +92,7 @@ onBeforeUnmount(() => {
         type="button"
         class="motion-collapse"
         :aria-expanded="!isCollapsed"
-        :aria-controls="`${activeTab === 'joint' ? 'joint-panel' : 'pose-panel'} motion-speed pose-actions`"
+        aria-controls="motion-body"
         :aria-label="collapseLabel"
         :data-chevron="isCollapsed ? 'down' : 'up'"
         data-test="motion-collapse"
@@ -118,7 +111,7 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <div v-show="!isCollapsed" class="motion-body">
+    <div v-show="!isCollapsed" id="motion-body" class="motion-body">
       <div
         v-if="realGuardHint"
         class="real-guard-banner"
@@ -129,7 +122,7 @@ onBeforeUnmount(() => {
         {{ realGuardHint }}
       </div>
 
-      <div v-show="!isCollapsed" id="motion-speed" class="jog-speed-box">
+      <div id="motion-speed" class="jog-speed-box">
         <div class="jog-speed-heading">
           <span>{{ $t('motion.speed') }}</span>
           <output class="num" for="jog-speed" data-test="speed-readout">{{ motion.speed }}%</output>
@@ -147,7 +140,7 @@ onBeforeUnmount(() => {
         />
       </div>
 
-      <div v-show="!isCollapsed" id="pose-actions" class="pose-actions">
+      <div id="pose-actions" class="pose-actions">
         <button
           v-for="k in (['home', 'align'] as const)"
           :key="k"
@@ -168,8 +161,8 @@ onBeforeUnmount(() => {
         </button>
       </div>
 
-      <CartesianPad v-show="!isCollapsed && activeTab === 'cartesian'" :disabled="busy" />
-      <JointControlList v-show="!isCollapsed && activeTab === 'joint'" :disabled="busy" />
+      <CartesianPad v-show="activeTab === 'cartesian'" :disabled="busy" />
+      <JointControlList v-show="activeTab === 'joint'" :disabled="busy" />
     </div>
   </section>
 </template>

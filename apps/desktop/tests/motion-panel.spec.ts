@@ -65,7 +65,7 @@ describe('MotionPanel & StageNotices', () => {
     await useRobotStore().load('uf850')
   })
 
-  it('defaults to Cartesian tab, preserves per-tab collapse state, and stops motion on tab switch / collapse', async () => {
+  it('defaults to Cartesian tab, shares collapse state across both tabs, and stops motion on tab switch / collapse', async () => {
     const wrapper = mount(MotionPanel, { attachTo: document.body, global: { plugins: [i18n] } })
     const motion = useMotionStore()
     const stopSpy = vi.spyOn(motion, 'stop')
@@ -75,24 +75,29 @@ describe('MotionPanel & StageNotices', () => {
     expect(wrapper.find('#pose-panel').isVisible()).toBe(true)
     expect(wrapper.find('#joint-panel').isVisible()).toBe(false)
 
-    // Collapse Cartesian tab
+    // Collapse on Cartesian tab -> applies uniformly across tabs
     await wrapper.find('[data-test="motion-collapse"]').trigger('click')
     expect(stopSpy).toHaveBeenCalledTimes(1)
     expect(wrapper.find('[data-test="motion-collapse"]').attributes('aria-expanded')).toBe('false')
     expect(wrapper.find('#pose-panel').isVisible()).toBe(false)
     expect(wrapper.find('#motion-speed').isVisible()).toBe(false)
 
-    // Switch to Joint tab -> expanded independently
+    // Switch to Joint tab -> stays collapsed
     await wrapper.find('[data-test="tab-joint"]').trigger('click')
     expect(stopSpy).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('[data-test="motion-collapse"]').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('#joint-panel').isVisible()).toBe(false)
+    expect(wrapper.find('#motion-speed').isVisible()).toBe(false)
+
+    // Expand on Joint tab -> keeps Cartesian expanded when switching back
+    await wrapper.find('[data-test="motion-collapse"]').trigger('click')
+    expect(wrapper.find('[data-test="motion-collapse"]').attributes('aria-expanded')).toBe('true')
     expect(wrapper.find('#joint-panel').isVisible()).toBe(true)
     expect(wrapper.find('#motion-speed').isVisible()).toBe(true)
-    expect(wrapper.find('[data-test="motion-collapse"]').attributes('aria-expanded')).toBe('true')
 
-    // Switch back to Cartesian -> still collapsed
     await wrapper.find('[data-test="tab-cartesian"]').trigger('click')
-    expect(wrapper.find('[data-test="motion-collapse"]').attributes('aria-expanded')).toBe('false')
-    expect(wrapper.find('#pose-panel').isVisible()).toBe(false)
+    expect(wrapper.find('[data-test="motion-collapse"]').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.find('#pose-panel').isVisible()).toBe(true)
     wrapper.unmount()
   })
 

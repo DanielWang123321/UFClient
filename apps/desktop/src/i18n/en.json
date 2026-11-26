@@ -113,7 +113,9 @@
     "errAlign": "Could not level the flange within joint limits; the current pose is preserved.",
     "errBoundary": "{axis} reached the safety boundary ({side} {limit}).",
     "min": "min",
-    "max": "max"
+    "max": "max",
+    "expandPanel": "Expand motion control",
+    "collapsePanel": "Collapse motion control"
   },
   "info": {
     "state": "State",
