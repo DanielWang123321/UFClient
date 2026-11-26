@@ -8,7 +8,7 @@
 
 UGClient is an open-source desktop client (Tauri v2 + Vue 3) for **kinematics, dynamics, 3D visualization, and optional physical arm control** of UFACTORY robot arms. It is built on [`ufactory_genesis`](https://github.com/xArm-Developer/ufactory_genesis) and [Pinocchio](https://github.com/stack-of-tasks/pinocchio). Terms and units follow UFACTORY Studio (`mm / °`, `TCP Offset`, `TCP Payload`). It starts in **simulation mode by default**, and can optionally connect to a real UFACTORY controller via `xarm-python-sdk` (default IP `192.168.1.60`); it does not do reinforcement learning.
 
-Supported models: **UF850, xArm5/6/7 (`_1305` revision only), Lite6** (with Gripper G2, BIO Gripper G2, Vacuum Gripper, Lite6 Gripper, and Lite6 Vacuum Gripper). Platforms: **Linux** (`.deb` package) and **Windows 10+** (NSIS `*-setup.exe` installer, unsigned development builds); macOS is not supported.
+Supported models: **UF850, xArm5/6/7 (`_1305` revision only), Lite6** (with Gripper G2, BIO Gripper G2, Vacuum Gripper, Robotiq 2F-85, Robotiq 2F-140, Lite6 Gripper, and Lite6 Vacuum Gripper). Platforms: **Linux** (`.deb` package) and **Windows 10+** (NSIS `*-setup.exe` installer, unsigned development builds); macOS is not supported.
 
 ![Main view: UF850 workspace](docs/images/main-view.png)
 
@@ -60,7 +60,7 @@ Early development (see [docs/DESIGN.md](docs/DESIGN.md) §14).
 | Linux `.deb` & Windows 10+ NSIS `.exe` packaging in CI / Release | done (unsigned development builds) |
 | Torque view, trajectory and torque-over-time curves, workspace and calibration | planned |
 
-Results come from **static models**: nominal URDF inertia, with no friction, gearbox efficiency, or per-unit calibration. Maximum joint torques ([UFACTORY joint parameters](https://docs.supportarticle.ufactory.cc/zhHans/support_articles/hardware/ufactory-joint-parameters.html)) are read at runtime from `ufactory_genesis`, pinned to `v0.3.9` (commit `b33810e`), which carries the official UFACTORY joint torque limits.
+Results come from **static models**: nominal URDF inertia, with no friction, gearbox efficiency, or per-unit calibration. Maximum joint torques ([UFACTORY joint parameters](https://docs.supportarticle.ufactory.cc/zhHans/support_articles/hardware/ufactory-joint-parameters.html)) are read at runtime from `ufactory_genesis`, pinned to `v0.3.10` (commit `c167f1e`), which carries the official UFACTORY joint torque limits.
 
 > **Note on unsigned releases:** Development installers (`.deb` and Windows `*-setup.exe`) are unsigned. Windows SmartScreen may show an "Unknown publisher" prompt on first launch; verify downloads with `SHA256SUMS.txt` from the GitHub Release.
 

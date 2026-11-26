@@ -643,6 +643,58 @@
         "properties": {},
         "required": []
       }
+    },
+    "real.gripper_enable": {
+      "description": "Activate/enable the specified real-robot gripper adapter and read back its current position when supported.",
+      "params": {
+        "type": "object",
+        "properties": {
+          "gripper": {
+            "type": "string",
+            "enum": [
+              "robotiq_2f_85",
+              "robotiq_2f_140",
+              "gripper_g2",
+              "bio_gripper_g2"
+            ]
+          }
+        },
+        "required": [
+          "gripper"
+        ]
+      }
+    },
+    "real.gripper_move": {
+      "description": "Command real-robot gripper target position, speed, and force (clamped to adapter SDK limits).",
+      "params": {
+        "type": "object",
+        "properties": {
+          "gripper": {
+            "type": "string",
+            "enum": [
+              "robotiq_2f_85",
+              "robotiq_2f_140",
+              "gripper_g2",
+              "bio_gripper_g2"
+            ]
+          },
+          "pos": {
+            "type": "number"
+          },
+          "speed": {
+            "type": "number"
+          },
+          "force": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "gripper",
+          "pos",
+          "speed",
+          "force"
+        ]
+      }
     }
   },
   "errors": {

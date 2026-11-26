@@ -1,6 +1,13 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { useEngineStore } from './engine'
+import {
+  GRIPPER_SPECS,
+  clampGripperValue,
+  createDefaultGripperStates,
+  type GripperState,
+  type SupportedGripper,
+} from '../lib/gripper'
 import type {
   CheckResult,
   FkResult,
@@ -25,7 +32,7 @@ export function robotDisplayName(key: string, fallback?: string): string {
 export const useRobotStore = defineStore('robot', () => {
   const engine = useEngineStore()
   const robots = ref<RobotListItem[]>([])
-  const key = ref('uf850')
+  const key = ref('xarm6_1305')
   const endEffector = ref('none')
   const info = ref<RobotLoadResult | null>(null)
   const q = ref<number[]>([])
@@ -37,6 +44,7 @@ export const useRobotStore = defineStore('robot', () => {
   const selectedSolution = ref(0)
   const lastError = ref('')
   const busy = ref(false)
+  const gripperStates = ref<Record<SupportedGripper, GripperState>>(createDefaultGripperStates())
 
   const sessionId = computed(() => info.value?.session_id ?? '')
 
@@ -164,8 +172,22 @@ export const useRobotStore = defineStore('robot', () => {
     await setQ(check.value.solutions[i].q_deg)
   }
 
+  function setGripperParams(ee: SupportedGripper, patch: Partial<GripperState>) {
+    const spec = GRIPPER_SPECS[ee]
+    const cur = gripperStates.value[ee]
+    gripperStates.value = {
+      ...gripperStates.value,
+      [ee]: {
+        pos: patch.pos !== undefined ? clampGripperValue(spec.pos, patch.pos) : cur.pos,
+        speed: patch.speed !== undefined ? clampGripperValue(spec.speed, patch.speed) : cur.speed,
+        force: patch.force !== undefined ? clampGripperValue(spec.force, patch.force) : cur.force,
+      },
+    }
+  }
+
   return {
     robots, key, endEffector, info, q, tcpOffset, payload, fk, torque, check, selectedSolution, lastError, busy,
-    sessionId, fetchRobots, load, select, applyTcp, applyPayload, refresh, setJoint, setQ, applyExternalState, checkPose, selectSolution,
+    gripperStates, sessionId, fetchRobots, load, select, applyTcp, applyPayload, refresh, setJoint, setQ,
+    applyExternalState, checkPose, selectSolution, setGripperParams,
   }
 })

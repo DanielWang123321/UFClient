@@ -32,6 +32,7 @@ declare module 'vue' {
     RobotPanel: typeof import('./components/RobotPanel.vue')['default']
     SafetySettingsPage: typeof import('./components/settings/SafetySettingsPage.vue')['default']
     StageNotices: typeof import('./components/StageNotices.vue')['default']
+    StageRealInfo: typeof import('./components/StageRealInfo.vue')['default']
     StageTelemetry: typeof import('./components/StageTelemetry.vue')['default']
     Viewport: typeof import('./components/Viewport.vue')['default']
   }

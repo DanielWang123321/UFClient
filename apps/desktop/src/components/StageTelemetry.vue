@@ -1,15 +1,10 @@
 <script setup lang="ts">
 // Frosted-glass telemetry card floating in the top-right corner of the 3D stage, with collapse toggle.
 import { computed, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { useRobotStore } from '../stores/robot'
-import { useSettingsStore } from '../stores/settings'
-import { formatMountingLabel } from '../lib/mounting'
 import { fmt } from '../lib/units'
 
-const { t } = useI18n()
 const robot = useRobotStore()
-const settings = useSettingsStore()
 const collapsed = ref(false)
 const tcpFields = [
   { key: 'X', unit: 'mm' },
@@ -79,17 +74,6 @@ const dof = computed(() => robot.q.length || robot.info?.dof || 6)
               <small>°</small>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div class="telemetry-section telemetry-meta">
-        <div>
-          <span>{{ $t('info.payload') }}</span>
-          <b class="num">{{ fmt(robot.payload.mass_kg, 2) }} kg</b>
-        </div>
-        <div>
-          <span>{{ $t('robot.mounting') }}</span>
-          <b data-test="telemetry-mounting">{{ formatMountingLabel(settings.mounting, t) }}</b>
         </div>
       </div>
     </div>
@@ -232,25 +216,5 @@ const dof = computed(() => robot.q.length || robot.info?.dof || 6)
   font-weight: 600;
   color: var(--uc-ink-muted);
   flex: none;
-}
-.telemetry-meta {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  font-size: 11px;
-}
-.telemetry-meta > div {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px;
-}
-.telemetry-meta span {
-  font-size: 10px;
-  color: var(--uc-ink-muted);
-}
-.telemetry-meta b {
-  font-weight: 700;
-  color: var(--uc-ink-strong);
 }
 </style>

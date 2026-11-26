@@ -32,8 +32,8 @@ include = ["ugclient_core*"]
 
 [tool.ugclient.ufactory_genesis]
 repository = "https://github.com/xArm-Developer/ufactory_genesis.git"
-# Pinned commit: v0.3.9 (runtime URDF assembly, unified xArm meshes, calibrated Gripper G2 & vacuum gripper).
-commit = "b33810e"
+# Pinned commit: v0.3.10 (Robotiq 2F-85/2F-140 + 11 mm flange adapter, mounting plates, unified xArm link_base inertials).
+commit = "c167f1e"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

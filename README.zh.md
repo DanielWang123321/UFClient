@@ -8,7 +8,7 @@
 
 UGClient 是一个开源桌面客户端（Tauri v2 + Vue 3），基于 [`ufactory_genesis`](https://github.com/xArm-Developer/ufactory_genesis) 和 [Pinocchio](https://github.com/stack-of-tasks/pinocchio)，为 UFACTORY 机械臂提供**运动学、动力学计算、3D 可视化以及可选的真机控制**。术语和单位与 UFACTORY Studio 一致（`mm / °`、`TCP Offset`、`TCP Payload`）。软件启动时默认处于**仿真模式**，也支持通过 `xarm-python-sdk` 可选连接 **UFACTORY 真机控制器**（默认 IP `192.168.1.60`）进行状态监控与受保护的运动控制；不做强化学习。
 
-支持机型：**UF850、xArm5/6/7（仅 `_1305` 版本）、Lite6**（支持末端：Gripper G2、BIO Gripper G2、Vacuum Gripper、Lite6 Gripper、Lite6 Vacuum Gripper）。平台：**Linux**（`.deb` 安装包）与 **Windows 10+**（NSIS `*-setup.exe` 安装包，未签名的开发构建）；暂不支持 macOS。
+支持机型：**UF850、xArm5/6/7（仅 `_1305` 版本）、Lite6**（支持末端：Gripper G2、BIO Gripper G2、Vacuum Gripper、Robotiq 2F-85、Robotiq 2F-140、Lite6 Gripper、Lite6 Vacuum Gripper）。平台：**Linux**（`.deb` 安装包）与 **Windows 10+**（NSIS `*-setup.exe` 安装包，未签名的开发构建）；暂不支持 macOS。
 
 ![主界面：UF850 工作台](docs/images/main-view.png)
 
@@ -60,7 +60,7 @@ UGClient 是一个开源桌面客户端（Tauri v2 + Vue 3），基于 [`ufactor
 | CI / Release 构建 Linux `.deb` 与 Windows 10+ NSIS `.exe` 安装包 | 已完成（未签名的开发构建） |
 | 扭矩视图、轨迹与扭矩随时间变化曲线、工作空间与标定 | 计划中 |
 
-计算结果来自**静态模型**：URDF 名义惯性参数，不含摩擦、减速器效率和单机标定。最大关节扭矩（[UFACTORY 关节参数](https://docs.supportarticle.ufactory.cc/zhHans/support_articles/hardware/ufactory-joint-parameters.html)）运行时从 `ufactory_genesis` 读取，当前锁定 `v0.3.9`（commit `b33810e`），已包含 UFACTORY 官方关节扭矩限值。
+计算结果来自**静态模型**：URDF 名义惯性参数，不含摩擦、减速器效率和单机标定。最大关节扭矩（[UFACTORY 关节参数](https://docs.supportarticle.ufactory.cc/zhHans/support_articles/hardware/ufactory-joint-parameters.html)）运行时从 `ufactory_genesis` 读取，当前锁定 `v0.3.10`（commit `c167f1e`），已包含 UFACTORY 官方关节扭矩限值。
 
 > **未签名包提示**：目前发布的 Linux `.deb` 与 Windows `*-setup.exe` 均为未签名开发构建，Windows 首次运行可能触发 SmartScreen「未知发布者」提示，请结合 Release 附带的 `SHA256SUMS.txt` 校验文件完整性。
 

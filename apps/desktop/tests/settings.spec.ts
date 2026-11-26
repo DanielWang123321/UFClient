@@ -4,7 +4,16 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useEngineStore } from '../src/stores/engine'
 import { useRobotStore } from '../src/stores/robot'
 import { useMotionStore } from '../src/stores/motion'
-import { SETTINGS_KEY, useSettingsStore } from '../src/stores/settings'
+import { DEFAULT_ROBOT, SETTINGS_KEY, useSettingsStore } from '../src/stores/settings'
+
+describe('default robot selection', () => {
+  it('defaults to xArm 6 (xarm6_1305) when no setting is persisted', () => {
+    localStorage.clear()
+    setActivePinia(createPinia())
+    expect(DEFAULT_ROBOT).toBe('xarm6_1305')
+    expect(useSettingsStore().defaultRobot).toBe('xarm6_1305')
+  })
+})
 import { RpcClient } from '../src/rpc/client'
 import { FakeWs, HELLO } from './fakeEngine'
 import { MOTION, STATE, sanitizeStep } from '../src/lib/motion'

@@ -21,3 +21,18 @@ export function utilLevel(ratio: number, warn = 0.5, high = 0.8): UtilLevel {
 }
 
 export const degToRad = (d: number) => (d * Math.PI) / 180
+
+/** Strip arm/box SN prefixes from raw xArm SDK firmware string (e.g. `6,6,XI1305,AC1310,v2.8.2` -> `v2.8.2`). */
+export function formatFirmwareVersion(raw: string | undefined | null): string {
+  const s = (raw ?? '').trim()
+  if (!s) return '—'
+  const parts = s
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean)
+  if (parts.length === 0) return '—'
+  const tail = parts[parts.length - 1]
+  const match = /v?(\d+\.\d+(?:\.\d+)*)/i.exec(tail)
+  if (match) return `v${match[1]}`
+  return parts.length > 1 ? '—' : tail
+}

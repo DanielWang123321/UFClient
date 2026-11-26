@@ -1,12 +1,26 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
+import type { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
 import URDFLoader, { type URDFRobot } from 'urdf-loader'
+import { createRobotDracoLoader } from './draco'
 
 export /** Camera distance factor for the robot framing (smaller = closer). */
-const VIEW_FIT = 1.35
+const VIEW_FIT = 0.9
+
+/** Compute summed arm link length from the main robot joints (ignores gripper mimic/TCP/hole frames). */
+export function computeArmReach(
+  joints: Record<string, { position: { length(): number } }>,
+  armJointNames?: readonly string[],
+): number {
+  const selected =
+    armJointNames && armJointNames.length > 0
+      ? armJointNames.map((n) => joints[n]).filter((j): j is { position: { length(): number } } => Boolean(j))
+      : Object.values(joints)
+  const source = selected.length > 0 ? selected : Object.values(joints)
+  return source.reduce((acc, j) => acc + j.position.length(), 0)
+}
 /** Solid coordinate axes, X red, Y green, Z blue (unlit, arrow-headed, drawn over the robot meshes). */
 export const AXIS_COLORS = { x: 0xe53935, y: 0x2ea043, z: 0x2574e8 } as const
 
@@ -75,6 +89,7 @@ export class SceneController {
   private resizeObs: ResizeObserver | null = null
   private draco: DRACOLoader
   private loadSeq = 0
+  private hasFramed = false
   onLoaded: (ok: boolean, err?: unknown) => void = () => {}
 
   constructor(private host: HTMLElement) {
@@ -127,8 +142,7 @@ export class SceneController {
 
     this.scene.add(this.baseAxes)
 
-    this.draco = new DRACOLoader()
-    this.draco.setDecoderPath('draco/')
+    this.draco = createRobotDracoLoader('draco/')
 
     this.resizeObs = new ResizeObserver(() => this.resize())
     this.resizeObs.observe(host)
@@ -138,7 +152,7 @@ export class SceneController {
   /** Default view; once a robot is loaded it is framed to fill the free stage area. */
   resetView() {
     let target = new THREE.Vector3(0.15, 0, 0.35)
-    let pos = new THREE.Vector3(1.5, -1.5, 1.2)
+    let pos = new THREE.Vector3(1.0, -1.0, 0.8)
     if (this.robot && this.reach > 0) {
       const sphere = new THREE.Sphere(new THREE.Vector3(0.08 * this.reach, 0, 0.44 * this.reach), 0.6 * this.reach)
       target = sphere.center.clone()
@@ -159,7 +173,11 @@ export class SceneController {
     this.requestRender()
   }
 
-  loadUrdf(relpath: string, eeLink: string) {
+  loadUrdf(
+    relpath: string,
+    eeLink: string,
+    options: { armJointNames?: readonly string[]; resetCamera?: boolean } = {},
+  ) {
     this.eeLink = eeLink
     const seq = ++this.loadSeq
     if (this.robot) {
@@ -219,8 +237,11 @@ export class SceneController {
       if (!robot || seq !== this.loadSeq) return
       this.robot = robot
       this.scene.add(robot)
-      this.reach = Object.values(robot.joints).reduce((a, j) => a + j.position.length(), 0)
-      this.resetView()
+      this.reach = computeArmReach(robot.joints, options.armJointNames)
+      if ((options.resetCamera ?? true) || !this.hasFramed) {
+        this.resetView()
+        this.hasFramed = true
+      }
       const ee = robot.links[this.eeLink]
       if (ee) {
         ee.add(this.tcpAxes)
@@ -240,6 +261,12 @@ export class SceneController {
   setJoints(names: string[], qDeg: number[]) {
     if (!this.robot) return
     names.forEach((n, i) => this.robot!.setJointValue(n, THREE.MathUtils.degToRad(qDeg[i] ?? 0)))
+    this.requestRender()
+  }
+
+  setGripperJoint(jointName: string, value: number) {
+    if (!this.robot) return
+    this.robot.setJointValue(jointName, value)
     this.requestRender()
   }
 

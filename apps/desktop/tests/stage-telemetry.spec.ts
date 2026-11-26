@@ -4,7 +4,6 @@ import { createPinia, setActivePinia } from 'pinia'
 
 import StageTelemetry from '../src/components/StageTelemetry.vue'
 import { useRobotStore } from '../src/stores/robot'
-import { useSettingsStore } from '../src/stores/settings'
 import { i18n } from '../src/i18n'
 
 describe('StageTelemetry collapse toggle', () => {
@@ -63,13 +62,9 @@ describe('StageTelemetry collapse toggle', () => {
     expect(wrapper.find('[data-test="q7"]').exists()).toBe(true)
   })
 
-  it('updates mounting readout live when settings mounting changes', async () => {
-    const settings = useSettingsStore()
+  it('omits payload and mounting footer section from telemetry card', () => {
     const wrapper = mount(StageTelemetry, { global: { plugins: [i18n] } })
-    expect(wrapper.find('[data-test="telemetry-mounting"]').text()).toBe('正装')
-
-    settings.setMountingPreset('wallUp')
-    await flushPromises()
-    expect(wrapper.find('[data-test="telemetry-mounting"]').text()).toBe('壁装向上')
+    expect(wrapper.find('[data-test="telemetry-mounting"]').exists()).toBe(false)
+    expect(wrapper.find('.telemetry-meta').exists()).toBe(false)
   })
 })

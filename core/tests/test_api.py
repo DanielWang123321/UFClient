@@ -92,10 +92,10 @@ def test_end_effector_combinations_and_default_tcp(client):
     """Every supported arm x end effector loads, reads its default TCP from the upstream composed URDF,
     and is visual only (gravity torques do not change)."""
     expected = {
-        "uf850": {"none", "gripper_g2", "bio_gripper_g2", "vacuum_gripper"},
-        "xarm5_1305": {"none", "gripper_g2", "bio_gripper_g2", "vacuum_gripper"},
-        "xarm6_1305": {"none", "gripper_g2", "bio_gripper_g2", "vacuum_gripper"},
-        "xarm7_1305": {"none", "gripper_g2", "bio_gripper_g2", "vacuum_gripper"},
+        "uf850": {"none", "gripper_g2", "bio_gripper_g2", "vacuum_gripper", "robotiq_2f_85", "robotiq_2f_140"},
+        "xarm5_1305": {"none", "gripper_g2", "bio_gripper_g2", "vacuum_gripper", "robotiq_2f_85", "robotiq_2f_140"},
+        "xarm6_1305": {"none", "gripper_g2", "bio_gripper_g2", "vacuum_gripper", "robotiq_2f_85", "robotiq_2f_140"},
+        "xarm7_1305": {"none", "gripper_g2", "bio_gripper_g2", "vacuum_gripper", "robotiq_2f_85", "robotiq_2f_140"},
         "lite6": {"none", "lite6_gripper", "lite6_vacuum_gripper"},
     }
     expected_tcp = {
@@ -103,6 +103,8 @@ def test_end_effector_combinations_and_default_tcp(client):
         "gripper_g2": [0.0, 0.0, 173.5, 0.0, 0.0, 0.0],
         "bio_gripper_g2": [157.639, -0.035, 57.516, 0.0, 0.0, -0.36],
         "vacuum_gripper": [0.0, 0.0, 126.0, 0.0, 0.0, 0.0],
+        "robotiq_2f_85": [0.0, 0.0, 173.253, 0.0, 0.0, 0.0],
+        "robotiq_2f_140": [0.0, 0.0, 245.466, 0.0, 0.0, 0.0],
         "lite6_gripper": [0.0, 0.0, 83.6, 0.0, 0.0, 0.0],
         "lite6_vacuum_gripper": [0.0, 0.0, 61.0, 0.0, 0.0, 0.0],
     }
@@ -165,7 +167,7 @@ def test_synced_assets_cover_every_visual_urdf(tmp_path):
 
 
 def test_bio_g2_and_vacuum_default_tcp_from_upstream_urdf(client):
-    """BIO G2 and xArm Vacuum Gripper read their default TCP directly from the upstream v0.3.9 URDFs."""
+    """BIO G2, xArm Vacuum Gripper, and Robotiq 2F-85/2F-140 read default TCPs directly from upstream v0.3.10 URDFs."""
     for robot in ("uf850", "xarm5_1305", "xarm6_1305", "xarm7_1305"):
         bio = client.call("robot.info", robot=robot, end_effector="bio_gripper_g2")
         assert bio["default_tcp_offset"] == pytest.approx([157.639, -0.035, 57.516, 0.0, 0.0, -0.36], abs=1e-3)
@@ -173,6 +175,15 @@ def test_bio_g2_and_vacuum_default_tcp_from_upstream_urdf(client):
         vac = client.call("robot.info", robot=robot, end_effector="vacuum_gripper")
         assert vac["default_tcp_offset"] == pytest.approx([0.0, 0.0, 126.0, 0.0, 0.0, 0.0], abs=1e-3)
         assert vac["default_tcp_source"] == f"urdf:{robot}__vacuum_gripper__glb.urdf#vacuum_joint_tcp"
+        rq85 = client.call("robot.info", robot=robot, end_effector="robotiq_2f_85")
+        assert rq85["default_tcp_offset"] == pytest.approx([0.0, 0.0, 173.253, 0.0, 0.0, 0.0], abs=1e-3)
+        assert rq85["default_tcp_source"] == f"urdf:{robot}__robotiq_2f_85__glb.urdf#robotiq_2f_85_tcp_joint"
+        rq140 = client.call("robot.info", robot=robot, end_effector="robotiq_2f_140")
+        assert rq140["default_tcp_offset"] == pytest.approx([0.0, 0.0, 245.466, 0.0, 0.0, 0.0], abs=1e-3)
+        assert rq140["default_tcp_source"] == f"urdf:{robot}__robotiq_2f_140__glb.urdf#robotiq_2f_140_tcp_joint"
+    assert client.raw("robot.info", {"robot": "lite6", "end_effector": "robotiq_2f_85"})["error"]["code"] == (
+        errors.INVALID_PARAMS
+    )
 
 
 def test_factory_loads_urdf_from_non_ascii_path(tmp_path):

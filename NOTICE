@@ -40,6 +40,16 @@ Attribution, as stated in the ufactory_genesis NOTICE:
   where noted in each assets/urdf/<name>/README.md. Combo URDFs, movable
   visual variants, and compressed GLBs are maintained in that repository.
 
+  Robotiq 2F-85 and 2F-140 grippers (assets/urdf/robotiq_2f_85/, assets/urdf/robotiq_2f_140/)
+  - Upstream: Robotiq/robotiq-ros (grippers/ at commit 49167c4f44a1da2b564715fba3e729c8ce958b63).
+  - License: BSD-3-Clause (full text in ufactory_genesis).
+  - Modifications in ufactory_genesis: normalized URDF frames, split STL
+    collision meshes, Draco-compressed visual GLBs, 11 mm flange adapter, and mimic-joint definitions.
+
+  Mounting plates (assets/urdf/{xarm_mounting_plate,uf850_mounting_plate,lite6_mounting_plate}/)
+  - Upstream: derived from publicly published UFACTORY STEP files and meshes in ufactory_mujoco.
+  - Modifications in ufactory_genesis: Draco-compressed GLBs, convex collision STLs, and runtime URDFs.
+
 The full ufactory_genesis NOTICE is shipped alongside the assets in every build
 (robot-assets/NOTICE.ufactory_genesis and the sidecar's NOTICE file).
 

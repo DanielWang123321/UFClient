@@ -6,7 +6,9 @@ import { SceneController } from '../three/SceneController'
 import { robotDisplayName, useRobotStore } from '../stores/robot'
 import { useMotionStore } from '../stores/motion'
 import { useRealStore } from '../stores/real'
+import { GRIPPER_SPECS, gripperPosToDriveValue, isControllableGripper } from '../lib/gripper'
 import StageTelemetry from './StageTelemetry.vue'
+import StageRealInfo from './StageRealInfo.vue'
 import StageNotices from './StageNotices.vue'
 
 const robot = useRobotStore()
@@ -16,12 +18,18 @@ const host = ref<HTMLDivElement>()
 const state = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
 const show = ref({ base: true, tcp: true })
 let ctl: SceneController | null = null
+let loadedRobotKey = ''
 
 function load() {
   if (!ctl || !robot.info) return
   state.value = 'loading'
   const ee = `link${robot.info.dof}`
-  ctl.loadUrdf(robot.info.visual_urdf_relpath, ee)
+  const robotChanged = loadedRobotKey !== robot.info.key
+  loadedRobotKey = robot.info.key
+  ctl.loadUrdf(robot.info.visual_urdf_relpath, ee, {
+    armJointNames: robot.info.joint_names,
+    resetCamera: robotChanged,
+  })
 }
 
 async function onSelectModel(e: Event) {
@@ -34,6 +42,13 @@ async function onSelectModel(e: Event) {
   await robot.select(nextKey, compatibleEe)
 }
 
+function syncGripper() {
+  if (!ctl || !isControllableGripper(robot.endEffector)) return
+  const ee = robot.endEffector
+  const val = gripperPosToDriveValue(ee, robot.gripperStates[ee].pos)
+  ctl.setGripperJoint(GRIPPER_SPECS[ee].urdfDrive.joint, val)
+}
+
 onMounted(() => {
   ctl = markRaw(new SceneController(host.value!))
   ctl.onLoaded = (ok) => {
@@ -41,6 +56,7 @@ onMounted(() => {
     if (ok && ctl && robot.info) {
       ctl.setJoints(robot.info.joint_names, robot.q)
       ctl.setTcp(robot.tcpOffset)
+      syncGripper()
       ctl.setVisible('base', show.value.base)
       ctl.setVisible('tcp', show.value.tcp)
     }
@@ -52,12 +68,20 @@ onMounted(() => {
 onBeforeUnmount(() => {
   ctl?.dispose()
   ctl = null
+  loadedRobotKey = ''
 })
 
 watch(() => robot.info?.visual_urdf_relpath, load)
 watch(
   () => [...robot.q],
   (q) => robot.info && ctl?.setJoints(robot.info.joint_names, q),
+)
+watch(
+  [
+    () => robot.endEffector,
+    () => (isControllableGripper(robot.endEffector) ? robot.gripperStates[robot.endEffector].pos : null),
+  ],
+  () => syncGripper(),
 )
 watch(() => robot.tcpOffset, (o) => ctl?.setTcp(o))
 watch(show, (s) => {
@@ -71,7 +95,23 @@ watch(show, (s) => {
     <div ref="host" class="canvas-area" data-test="viewport"></div>
 
     <div class="stage-top">
-      <div class="robot-models">
+      <StageRealInfo v-if="real.connected">
+        <template #model>
+          <label class="visually-hidden" for="robot-select">{{ $t('robot.model') }}</label>
+          <select
+            id="robot-select" class="in-real-card" :value="robot.key"
+            :disabled="robot.robots.length === 0 || real.connected"
+            :title="$t('robot.lockedReal')"
+            data-test="robot-select" @change="onSelectModel"
+          >
+            <option v-if="robot.robots.length === 0" :value="robot.key">{{ robotDisplayName(robot.key) }}</option>
+            <option v-for="r in robot.robots" :key="r.key" :value="r.key">
+              {{ robotDisplayName(r.key, r.robot_name) }}
+            </option>
+          </select>
+        </template>
+      </StageRealInfo>
+      <div v-else class="robot-models">
         <label class="visually-hidden" for="robot-select">{{ $t('robot.model') }}</label>
         <select
           id="robot-select" :value="robot.key" :disabled="robot.robots.length === 0 || real.connected"
@@ -322,5 +362,22 @@ watch(show, (s) => {
   clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
+}
+#robot-select.in-real-card,
+#robot-select.in-real-card:disabled {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 1px 2px;
+  height: auto;
+  min-width: 0;
+  width: auto;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--uc-ink-strong);
+  opacity: 1;
+  appearance: none;
+  cursor: default;
 }
 </style>

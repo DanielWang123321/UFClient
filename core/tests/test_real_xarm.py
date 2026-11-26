@@ -71,6 +71,10 @@ class FakeXArm:
             list(initial_point) if initial_point is not None else [-0.4, -31.7, -25.7, 0.2, 57.4, -0.2, 0.0]
         )
         self._studio_error = studio_error
+        self.robotiq_status: dict[str, int] = {"gOBJ": 3, "gSTA": 3, "gGTO": 1, "gACT": 1, "gPO": 42}
+        self._gripper_g2_pos = 55
+        self._bio_g2_pos = 110
+        self.gripper_fail_code = 0
         self.calls: list[tuple[str, tuple, dict]] = []
 
     def disconnect(self) -> None:
@@ -155,6 +159,45 @@ class FakeXArm:
         if self._studio_error:
             return -1, []
         return 0, list(self._initial_point)
+
+    def robotiq_set_activate(self, **kwargs) -> tuple[int, list[int]]:
+        self.calls.append(("robotiq_set_activate", (), kwargs))
+        return self.gripper_fail_code, [0]
+
+    def robotiq_get_status(self, number_of_registers: int = 3, **kwargs) -> tuple[int, list[int]]:
+        self.calls.append(("robotiq_get_status", (number_of_registers,), kwargs))
+        return 0, [0]
+
+    def robotiq_set_position(self, pos: int, **kwargs) -> tuple[int, list[int]]:
+        self.calls.append(("robotiq_set_position", (pos,), kwargs))
+        self.robotiq_status["gPO"] = int(pos)
+        return self.gripper_fail_code, [0]
+
+    def set_gripper_enable(self, enable: bool, **kwargs) -> int:
+        self.calls.append(("set_gripper_enable", (enable,), kwargs))
+        return self.gripper_fail_code
+
+    def get_gripper_g2_position(self, **kwargs) -> tuple[int, int]:
+        self.calls.append(("get_gripper_g2_position", (), kwargs))
+        return 0, self._gripper_g2_pos
+
+    def set_gripper_g2_position(self, pos: int, **kwargs) -> int:
+        self.calls.append(("set_gripper_g2_position", (pos,), kwargs))
+        self._gripper_g2_pos = int(pos)
+        return self.gripper_fail_code
+
+    def set_bio_gripper_enable(self, enable: bool = True, **kwargs) -> int:
+        self.calls.append(("set_bio_gripper_enable", (enable,), kwargs))
+        return self.gripper_fail_code
+
+    def get_bio_gripper_g2_position(self, **kwargs) -> tuple[int, int]:
+        self.calls.append(("get_bio_gripper_g2_position", (), kwargs))
+        return 0, self._bio_g2_pos
+
+    def set_bio_gripper_g2_position(self, pos: int, **kwargs) -> tuple[int, list[int]]:
+        self.calls.append(("set_bio_gripper_g2_position", (pos,), kwargs))
+        self._bio_g2_pos = int(pos)
+        return self.gripper_fail_code, [0]
 
 
 class RpcHarness:
@@ -461,3 +504,63 @@ def test_read_settings_one_way_sync_and_gravity_fallback():
     assert snap_fb["mount_direction"] == [180.0, 0.0]
     assert snap_fb["initial_point"] is None
     h2.call("real.disconnect")
+
+
+def test_real_gripper_enable_move_clamping_and_guards():
+    arm = FakeXArm("192.168.1.60")
+    h = RpcHarness(lambda _ip: arm)
+
+    # Disconnected and unknown grippers are rejected cleanly
+    assert h.raw("real.gripper_enable", {"gripper": "vacuum_gripper"})["error"]["code"] == errors.INVALID_PARAMS
+    assert h.raw("real.gripper_enable", {"gripper": "robotiq_2f_85"})["error"]["code"] == errors.REAL_NOT_CONNECTED
+
+    h.call("real.connect", ip="192.168.1.60")
+
+    # Robotiq 2F-85 & 2F-140: activate + readback gPO + clamping [0..255]
+    for g in ("robotiq_2f_85", "robotiq_2f_140"):
+        en = h.call("real.gripper_enable", gripper=g)
+        assert en == {"ok": True, "gripper": g, "enabled": True, "pos": 42}
+        mv = h.call("real.gripper_move", gripper=g, pos=300, speed=-10, force=260)
+        assert mv == {"ok": True, "gripper": g, "pos": 255, "speed": 0, "force": 255}
+        arm.robotiq_status["gPO"] = 42
+
+    # Gripper G2: enable + readback + clamping pos[0..84], speed[15..225], force[1..100]
+    assert h.call("real.gripper_enable", gripper="gripper_g2") == {
+        "ok": True,
+        "gripper": "gripper_g2",
+        "enabled": True,
+        "pos": 55,
+    }
+    assert h.call("real.gripper_move", gripper="gripper_g2", pos=99, speed=5, force=0) == {
+        "ok": True,
+        "gripper": "gripper_g2",
+        "pos": 84,
+        "speed": 15,
+        "force": 1,
+    }
+
+    # BIO Gripper G2: enable + readback + clamping pos[71..150], speed[500..4000], force[1..100]
+    assert h.call("real.gripper_enable", gripper="bio_gripper_g2") == {
+        "ok": True,
+        "gripper": "bio_gripper_g2",
+        "enabled": True,
+        "pos": 110,
+    }
+    assert h.call("real.gripper_move", gripper="bio_gripper_g2", pos=50, speed=4500, force=150) == {
+        "ok": True,
+        "gripper": "bio_gripper_g2",
+        "pos": 71,
+        "speed": 4000,
+        "force": 100,
+    }
+
+    # Controller error blocks both enable and move
+    arm.error_code = 11
+    assert h.raw("real.gripper_enable", {"gripper": "robotiq_2f_85"})["error"]["code"] == errors.REAL_CONTROLLER_ERROR
+    assert (
+        h.raw("real.gripper_move", {"gripper": "robotiq_2f_85", "pos": 100, "speed": 100, "force": 100})["error"][
+            "code"
+        ]
+        == errors.REAL_CONTROLLER_ERROR
+    )
+    h.call("real.disconnect")

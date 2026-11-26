@@ -30,6 +30,19 @@
     "eeHint": "End effector is visual only; set its mass in TCP Payload.",
     "lockedReal": "Robot model is locked to the connected physical controller."
   },
+  "gripper": {
+    "title": "Gripper control",
+    "position": "Position",
+    "speed": "Speed",
+    "force": "Force",
+    "open": "Open",
+    "close": "Close",
+    "enable": "Enable",
+    "enabled": "Enabled",
+    "speedAndForce": "Speed & Force",
+    "expandTuning": "Show speed & force",
+    "collapseTuning": "Hide speed & force"
+  },
   "tcp": {
     "title": "TCP Offset",
     "hint": "Relative to the flange, mm / °",
@@ -138,7 +151,27 @@
     "errWarn": "Error / Warn",
     "simRobotFlag": "Controller simulation mode",
     "needEnableHint": "Motors are disabled. Click \"Enable motors\" before jogging.",
-    "errorHint": "Controller fault active (error {code}); motion is blocked. Inspect and clear error manually."
+    "errorHint": "Controller fault active (error {code}); motion is blocked. Inspect and clear error manually.",
+    "statusTitle": "Robot Status",
+    "collapseInfo": "Collapse robot info",
+    "expandInfo": "Expand robot info",
+    "states": {
+      "1": "Moving",
+      "2": "Ready",
+      "3": "Paused",
+      "4": "Stopped",
+      "5": "Stopped",
+      "6": "Decel"
+    },
+    "modes": {
+      "0": "Position",
+      "1": "Servo",
+      "2": "Manual",
+      "4": "Joint Vel",
+      "5": "Cart Vel",
+      "6": "Joint Online",
+      "7": "Cart Online"
+    }
   },
   "settings": {
     "title": "Settings",

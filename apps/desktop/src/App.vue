@@ -11,7 +11,7 @@ import SettingsView from './views/SettingsView.vue'
 import { useEngineStore } from './stores/engine'
 import { useMotionStore } from './stores/motion'
 import { useRobotStore } from './stores/robot'
-import { useSettingsStore } from './stores/settings'
+import { DEFAULT_ROBOT, useSettingsStore } from './stores/settings'
 
 const { locale } = useI18n()
 const engine = useEngineStore()
@@ -47,7 +47,7 @@ async function start() {
       await robot.applyPayload(last.payload)
       if (last.q.length === robot.info?.dof) await robot.setQ(last.q)
     } else {
-      await robot.load(known(settings.defaultRobot) ? settings.defaultRobot : 'uf850')
+      await robot.load(known(settings.defaultRobot) ? settings.defaultRobot : DEFAULT_ROBOT)
     }
   }
 }

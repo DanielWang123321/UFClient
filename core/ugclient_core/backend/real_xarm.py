@@ -38,6 +38,7 @@ from ..errors import (
     REAL_NOT_CONNECTED,
     REAL_SDK_UNAVAILABLE,
     RpcError,
+    invalid_params,
 )
 from . import factory
 from .kin_pinocchio import LINEAR_AXES, ROT_AXES, jog_target, pose_si_to_se3, se3_to_pose_si
@@ -70,6 +71,22 @@ DEFAULT_VEL_DURATION_S = 0.4
 VEL_LOOKAHEAD_S = 0.15
 WATCHDOG_MARGIN_S = 0.12
 BOUNDARY_EPS = 1e-6
+
+#: SDK control limits per supported real gripper adapter.
+GRIPPER_LIMITS: dict[str, dict[str, tuple[int, int]]] = {
+    "robotiq_2f_85": {"pos": (0, 255), "speed": (0, 255), "force": (0, 255)},
+    "robotiq_2f_140": {"pos": (0, 255), "speed": (0, 255), "force": (0, 255)},
+    "gripper_g2": {"pos": (0, 84), "speed": (15, 225), "force": (1, 100)},
+    "bio_gripper_g2": {"pos": (71, 150), "speed": (500, 4000), "force": (1, 100)},
+}
+
+
+def _sdk_code(res: Any) -> int:
+    return int(res[0]) if isinstance(res, (tuple, list)) else int(res)
+
+
+def _clamp_int(val: float, bounds: tuple[int, int]) -> int:
+    return int(max(bounds[0], min(bounds[1], round(float(val)))))
 
 
 def _positive_int(obj: Any, attr: str) -> int | None:
@@ -920,11 +937,79 @@ class RealXArmController:
             self._arm_watchdog(dur + WATCHDOG_MARGIN_S)
             return {"ok": True}
 
+    # -- End-effector / Gripper controls -------------------------------------
+    @staticmethod
+    def _validate_gripper(gripper: str) -> dict[str, tuple[int, int]]:
+        limits = GRIPPER_LIMITS.get(gripper)
+        if limits is None:
+            raise invalid_params(f"unsupported gripper: {gripper}")
+        return limits
+
+    @staticmethod
+    def _read_gripper_pos(arm: Any, gripper: str, pos_bounds: tuple[int, int]) -> int | None:
+        try:
+            if gripper in ("robotiq_2f_85", "robotiq_2f_140"):
+                st = arm.robotiq_get_status(3)
+                if _sdk_code(st) != 0:
+                    return None
+                raw_pos = getattr(arm, "robotiq_status", {}).get("gPO")
+            elif gripper == "gripper_g2":
+                res = arm.get_gripper_g2_position()
+                if not isinstance(res, (tuple, list)) or len(res) < 2 or int(res[0]) != 0:
+                    return None
+                raw_pos = res[1]
+            else:
+                res = arm.get_bio_gripper_g2_position()
+                if not isinstance(res, (tuple, list)) or len(res) < 2 or int(res[0]) != 0:
+                    return None
+                raw_pos = res[1]
+            if isinstance(raw_pos, numbers.Real) and not isinstance(raw_pos, bool) and math.isfinite(float(raw_pos)):
+                return _clamp_int(float(raw_pos), pos_bounds)
+        except Exception:
+            return None
+        return None
+
+    def gripper_enable(self, gripper: str) -> dict[str, Any]:
+        limits = self._validate_gripper(gripper)
+        with self._cmd_lock:
+            arm = self._require_arm()
+            self._check_error_free(arm)
+            if gripper in ("robotiq_2f_85", "robotiq_2f_140"):
+                code = _sdk_code(arm.robotiq_set_activate(wait=True, timeout=3))
+            elif gripper == "gripper_g2":
+                code = _sdk_code(arm.set_gripper_enable(True))
+            else:
+                code = _sdk_code(arm.set_bio_gripper_enable(True, wait=True, timeout=3))
+            if code != 0:
+                raise RpcError(REAL_MOTION_REJECTED, f"{gripper} enable failed with SDK code {code}")
+            pos = self._read_gripper_pos(arm, gripper, limits["pos"])
+            return {"ok": True, "gripper": gripper, "enabled": True, "pos": pos}
+
+    def gripper_move(self, gripper: str, pos: float, speed: float, force: float) -> dict[str, Any]:
+        limits = self._validate_gripper(gripper)
+        p = _clamp_int(pos, limits["pos"])
+        s = _clamp_int(speed, limits["speed"])
+        f = _clamp_int(force, limits["force"])
+        with self._cmd_lock:
+            arm = self._require_arm()
+            self._check_error_free(arm)
+            if gripper in ("robotiq_2f_85", "robotiq_2f_140"):
+                res = arm.robotiq_set_position(p, speed=s, force=f, wait=False)
+            elif gripper == "gripper_g2":
+                res = arm.set_gripper_g2_position(p, speed=s, force=f, wait=False)
+            else:
+                res = arm.set_bio_gripper_g2_position(p, speed=s, force=f, wait=False)
+            code = _sdk_code(res)
+            if code != 0:
+                raise RpcError(REAL_MOTION_REJECTED, f"{gripper} move failed with SDK code {code}")
+            return {"ok": True, "gripper": gripper, "pos": p, "speed": s, "force": f}
+
 
 __all__ = [
     "CONTROLLER_MODEL_MAP",
     "DEFAULT_REAL_IP",
     "DEFAULT_VEL_DURATION_S",
+    "GRIPPER_LIMITS",
     "MODE_CARTESIAN_VELOCITY",
     "MODE_JOINT_VELOCITY",
     "MODE_POSITION",

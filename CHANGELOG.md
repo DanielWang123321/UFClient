@@ -14,10 +14,21 @@ All notable changes to UGClient (formerly Uclient) are documented here. Format: 
   - **Collision Detection** (`0–5` sensitivity scale) and per-model **Initial Position** configuration (`Home` motion target).
   - Unified **TCP Payload & Offset** card with `+ New` / preset management, plus **Coordinates** (World / Base Coordinate System offset & presets) and **Mounting** presets (`Floor`, `Ceiling`, `WallUp`, `WallDown`, `Customized` with `Tilt Angle` & `Rotate Angle`) synced live to `RobotPanel` and `StageTelemetry`.
 - One-way read-only hardware parameter synchronization (`real.read_settings`): reads `collision_sensitivity`, `world_offset`, `gravity_direction`, `mount_direction` (`get_mount_direction()` with inverse gravity fallback), and `initial_point` (`get_initial_point()`) from the connected physical controller to overwrite local state without blocking motion locks.
+- Top-left collapsible frosted-glass real-robot overlay panel (`StageRealInfo.vue`) in `Viewport.vue`: displays live controller state, mode, stripped firmware version, collision sensitivity, TCP Payload, and TCP Offset read from the physical arm alongside the locked model selector, with a read-only refresh trigger (`real.refreshSettings()`).
+- Dedicated gripper controls (`RobotPanel.vue`, `lib/gripper.ts`, and `real.gripper_enable` / `real.gripper_move` RPCs) for Robotiq `2F-85`, Robotiq `2F-140`, `Gripper G2`, and `BIO Gripper G2`: position slider/input + Open/Close actions drive live 3D finger kinematics via URDF mimic joints in simulation and `xarm-python-sdk` commands in real mode, with Speed & Force parameters tucked into a collapsible tuning sub-panel.
 
 ### Changed
+- Removed the redundant top-right `Stopped (4)` status pill from `AppHeader.vue` and removed the `payload` / `mounting` footer section from `StageTelemetry.vue`.
+- Increased default 3D viewport robot scale by 50% (`VIEW_FIT` `1.35` -> `0.9`, fallback camera pose scaled accordingly) and switched the default startup robot model from `uf850` to xArm 6 (`xarm6_1305`).
 - Moved the Settings entry from `AppHeader` to the bottom-left primary navigation rail and removed `TcpPanel` / `PayloadPanel` from the main workbench right sidebar (TCP & Payload configuration now lives in **Settings -> Motion**), while preserving the 3D WebGL viewport context across page switches via `v-show`.
 - Strict read-only physical robot invariant: removed `real.set_tcp` and `real.set_payload` RPC methods and frontend write helpers so UGClient never writes configuration parameters back to physical hardware.
+- Synced upstream `ufactory_genesis` pin from `v0.3.9` (`b33810e`) to `v0.3.10` (`c167f1e`):
+  - Added Robotiq 2F-85 (`173.253 mm` default TCP) and Robotiq 2F-140 (`245.466 mm` default TCP) with the 11 mm `robotiq_mounting` flange adapter across UF850 and xArm 5/6/7.
+  - Synced upstream aligned Lite 6 `link_base.glb`, unified xArm `link_base` inertials, `assembly.yaml` schema 5, and Robotiq / mounting-plate attributions in `NOTICE`.
+
+### Fixed
+- Worked around swapped `KHR_draco_mesh_compression.attributes` unique IDs in upstream `ufactory_genesis v0.3.10` Robotiq 2F-85 / 2F-140 finger and knuckle GLBs (`draco.ts`, `SceneController`) by decoding standard glTF attributes via semantic Draco IDs instead of glTF unique IDs (preventing unit normals from rendering as a 1 m sphere).
+- Fixed 3D arm zoom/scale jumping when switching end effectors: `SceneController.computeArmReach` now sums only the arm's primary joints (excluding end-effector mimic, TCP, and adapter mounting-hole frames), and `Viewport` preserves the current camera framing when changing end effectors on the same robot model.
 
 ## [0.3.1] - 2026-11-25
 

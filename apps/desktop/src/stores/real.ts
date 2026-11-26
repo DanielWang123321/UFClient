@@ -4,8 +4,9 @@ import { computed, ref } from 'vue'
 import { useEngineStore } from './engine'
 import { useRobotStore } from './robot'
 import { REAL_DEFAULT_SPEED_PCT, useSettingsStore } from './settings'
-import type { RealStatus } from '../rpc/types'
+import type { RealGripperEnableResult, RealGripperMoveResult, RealStatus } from '../rpc/types'
 import { STATE } from '../lib/motion'
+import type { GripperState, SupportedGripper } from '../lib/gripper'
 
 export const useRealStore = defineStore('real', () => {
   const engine = useEngineStore()
@@ -28,6 +29,9 @@ export const useRealStore = defineStore('real', () => {
   const enabled = ref(false)
   const isSimulationRobot = ref(false)
   const lastError = ref('')
+  const gripperBusy = ref(false)
+  const gripperEnabled = ref<Partial<Record<SupportedGripper, boolean>>>({})
+  const gripperError = ref('')
 
   const isRealMode = computed(() => connected.value)
   const canMove = computed(() => connected.value && enabled.value && errorCode.value === 0)
@@ -51,7 +55,10 @@ export const useRealStore = defineStore('real', () => {
     enabled.value = Boolean(snap.enabled)
     isSimulationRobot.value = Boolean(snap.is_simulation_robot)
 
-    if (snap.connected) {
+    if (!snap.connected) {
+      gripperEnabled.value = {}
+      gripperError.value = ''
+    } else {
       const targetKey = snap.robot_key || robot.key
       const targetDof = snap.dof || robot.info?.dof || 6
       settings.applyFromRealController(targetKey, targetDof, snap)
@@ -128,6 +135,8 @@ export const useRealStore = defineStore('real', () => {
     } catch (e) {
       connected.value = false
       enabled.value = false
+      gripperEnabled.value = {}
+      gripperError.value = ''
       lastError.value = e instanceof Error ? e.message : String(e)
     } finally {
       busy.value = false
@@ -193,6 +202,45 @@ export const useRealStore = defineStore('real', () => {
     }
   }
 
+  async function enableGripper(ee: SupportedGripper): Promise<boolean> {
+    if (!connected.value) return false
+    gripperBusy.value = true
+    gripperError.value = ''
+    try {
+      const res = await engine.call<RealGripperEnableResult>('real.gripper_enable', { gripper: ee })
+      gripperEnabled.value = { ...gripperEnabled.value, [ee]: Boolean(res.enabled) }
+      if (typeof res.pos === 'number' && Number.isFinite(res.pos)) {
+        robot.setGripperParams(ee, { pos: res.pos })
+      }
+      return true
+    } catch (e) {
+      gripperError.value = e instanceof Error ? e.message : String(e)
+      return false
+    } finally {
+      gripperBusy.value = false
+    }
+  }
+
+  async function moveGripper(ee: SupportedGripper, params?: Partial<GripperState>): Promise<boolean> {
+    if (params) robot.setGripperParams(ee, params)
+    const stateVal = robot.gripperStates[ee]
+    if (!connected.value) return true
+    gripperError.value = ''
+    try {
+      const res = await engine.call<RealGripperMoveResult>('real.gripper_move', {
+        gripper: ee,
+        pos: stateVal.pos,
+        speed: stateVal.speed,
+        force: stateVal.force,
+      })
+      robot.setGripperParams(ee, { pos: res.pos, speed: res.speed, force: res.force })
+      return true
+    } catch (e) {
+      gripperError.value = e instanceof Error ? e.message : String(e)
+      return false
+    }
+  }
+
   function clearNotice() {
     lastError.value = ''
   }
@@ -214,6 +262,9 @@ export const useRealStore = defineStore('real', () => {
     enabled,
     isSimulationRobot,
     lastError,
+    gripperBusy,
+    gripperEnabled,
+    gripperError,
     isRealMode,
     canMove,
     applySnapshot,
@@ -223,6 +274,8 @@ export const useRealStore = defineStore('real', () => {
     clearError,
     stop,
     refreshSettings,
+    enableGripper,
+    moveGripper,
     clearNotice,
   }
 })

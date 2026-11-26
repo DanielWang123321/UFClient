@@ -119,3 +119,18 @@ export interface RealBoundaryParam {
   joint_min: number[]
   joint_max: number[]
 }
+
+export interface RealGripperEnableResult {
+  ok: boolean
+  gripper: string
+  enabled: boolean
+  pos?: number | null
+}
+
+export interface RealGripperMoveResult {
+  ok: boolean
+  gripper: string
+  pos: number
+  speed: number
+  force: number
+}

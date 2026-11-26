@@ -30,6 +30,19 @@
     "eeHint": "末端只用于显示和默认 TCP，质量请在 TCP Payload 中设置。",
     "lockedReal": "真机连接中，机型已自动锁定为当前控制器型号。"
   },
+  "gripper": {
+    "title": "夹爪控制",
+    "position": "位置",
+    "speed": "速度",
+    "force": "力",
+    "open": "打开",
+    "close": "闭合",
+    "enable": "使能",
+    "enabled": "已使能",
+    "speedAndForce": "速度与力",
+    "expandTuning": "展开速度与力调节",
+    "collapseTuning": "收起速度与力调节"
+  },
   "tcp": {
     "title": "TCP Offset",
     "hint": "相对法兰，mm / °",
@@ -138,7 +151,27 @@
     "errWarn": "错误 / 告警码",
     "simRobotFlag": "控制器仿真模式",
     "needEnableHint": "电机未使能，请先点击「使能电机」再执行运动。",
-    "errorHint": "控制器存在错误（错误码 {code}），运动已禁止；请排查后手动清除错误。"
+    "errorHint": "控制器存在错误（错误码 {code}），运动已禁止；请排查后手动清除错误。",
+    "statusTitle": "机械臂状态",
+    "collapseInfo": "折叠机械臂信息",
+    "expandInfo": "展开机械臂信息",
+    "states": {
+      "1": "运动中",
+      "2": "就绪",
+      "3": "暂停",
+      "4": "已停止",
+      "5": "已停止",
+      "6": "减速停止"
+    },
+    "modes": {
+      "0": "位置",
+      "1": "伺服",
+      "2": "手动",
+      "4": "关节速度",
+      "5": "笛卡尔速度",
+      "6": "关节在线",
+      "7": "笛卡尔在线"
+    }
   },
   "settings": {
     "title": "设置",

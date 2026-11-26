@@ -1,23 +1,15 @@
 <script setup lang="ts">
 // Slim 48px workspace header: branding, real-robot & engine status, STOP, language.
-import { computed, inject } from 'vue'
+import { inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEngineStore } from '../stores/engine'
 import { useMotionStore } from '../stores/motion'
-import { useRealStore } from '../stores/real'
-import { STATE } from '../lib/motion'
 import RealRobotControl from './RealRobotControl.vue'
 
 const { locale } = useI18n()
 const engine = useEngineStore()
 const motion = useMotionStore()
-const real = useRealStore()
 const retry = inject<() => void>('engine.retry', () => {})
-
-const effectiveState = computed(() => (real.connected ? real.state : motion.state))
-const stateKey = computed(() =>
-  effectiveState.value === STATE.moving ? 'moving' : effectiveState.value === STATE.ready ? 'ready' : 'stopped',
-)
 </script>
 
 <template>
@@ -31,11 +23,6 @@ const stateKey = computed(() =>
 
     <div class="header-right">
       <RealRobotControl />
-
-      <div class="sim-pill" :class="stateKey">
-        <span class="sim-dot" />
-        <span data-test="sim-state">{{ $t(`info.${stateKey}`) }} ({{ effectiveState }})</span>
-      </div>
 
       <div
         class="engine-pill"
@@ -89,7 +76,6 @@ const stateKey = computed(() =>
   align-items: center;
   gap: 4px;
 }
-.sim-pill,
 .engine-pill {
   display: inline-flex;
   align-items: center;
@@ -103,7 +89,6 @@ const stateKey = computed(() =>
   color: var(--uc-ink);
   white-space: nowrap;
 }
-.sim-dot,
 .eng-dot {
   width: 7px;
   height: 7px;
@@ -111,9 +96,6 @@ const stateKey = computed(() =>
   background: #94a3b8;
   flex: none;
 }
-.sim-pill.ready .sim-dot { background: #16a34a; }
-.sim-pill.moving .sim-dot { background: var(--uc-primary); }
-.sim-pill.stopped .sim-dot { background: #d97706; }
 .eng-dot.connected { background: #16a34a; }
 .eng-dot.connecting { background: #d97706; }
 .eng-dot.error { background: var(--uc-danger); }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fmt, fmtPct, utilLevel } from '../src/lib/units'
+import { fmt, fmtPct, formatFirmwareVersion, utilLevel } from '../src/lib/units'
 import { torqueCsv } from '../src/lib/csv'
 
 describe('units', () => {
@@ -8,6 +8,14 @@ describe('units', () => {
     expect(fmt(-0.0001)).toBe('0.000')
     expect(fmt(undefined)).toBe('—')
     expect(fmtPct(0.19597)).toBe('19.6%')
+  })
+  it('extracts firmware version without arm/control-box SN prefixes', () => {
+    expect(formatFirmwareVersion('6,6,XI1305,AC1310,v2.8.2')).toBe('v2.8.2')
+    expect(formatFirmwareVersion('6,6,XI1305,AC1310,2.8.2-20250901')).toBe('v2.8.2')
+    expect(formatFirmwareVersion('2.8.1')).toBe('v2.8.1')
+    expect(formatFirmwareVersion('6,6,XI1305,AC1310')).toBe('—')
+    expect(formatFirmwareVersion('')).toBe('—')
+    expect(formatFirmwareVersion(undefined)).toBe('—')
   })
   it('classifies utilisation bands', () => {
     expect(utilLevel(0.2)).toBe('ok')

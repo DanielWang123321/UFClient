@@ -117,5 +117,25 @@ def real_jog_tcp_vel(params: dict[str, Any], store: SessionStore) -> dict[str, A
     return store.real.jog_tcp_vel(speeds, duration_s=dur, boundary=_opt_boundary(params))
 
 
+def _gripper_param(params: dict[str, Any]) -> str:
+    g = params.get("gripper")
+    if not isinstance(g, str) or not g.strip():
+        raise invalid_params("gripper must be a non-empty string")
+    return g.strip()
+
+
 def real_read_settings(_: dict[str, Any], store: SessionStore) -> dict[str, Any]:
     return store.real.read_settings()
+
+
+def real_gripper_enable(params: dict[str, Any], store: SessionStore) -> dict[str, Any]:
+    return store.real.gripper_enable(_gripper_param(params))
+
+
+def real_gripper_move(params: dict[str, Any], store: SessionStore) -> dict[str, Any]:
+    return store.real.gripper_move(
+        _gripper_param(params),
+        number(params, "pos"),
+        number(params, "speed"),
+        number(params, "force"),
+    )

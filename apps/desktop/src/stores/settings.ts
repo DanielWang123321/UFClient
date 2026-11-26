@@ -17,6 +17,7 @@ import type { RealStatus } from '../rpc/types'
 export const SETTINGS_KEY = 'ugclient.settings'
 export const DEFAULT_REAL_IP = '192.168.1.60'
 export const REAL_DEFAULT_SPEED_PCT = 20
+export const DEFAULT_ROBOT = 'xarm6_1305'
 
 export type Pose6Tuple = [number, number, number, number, number, number]
 
@@ -167,7 +168,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const mounting = ref<MountingConfig>(sanitizeMounting(s.mounting))
   const speedPct = ref(sanitizeSpeedPct(s.speedPct, MOTION.defaultSpeedPct))
   const boundaries = ref<Record<string, Partial<Boundary>>>(s.boundaries ?? {})
-  const defaultRobot = ref(s.defaultRobot ?? 'uf850')
+  const defaultRobot = ref(s.defaultRobot ?? DEFAULT_ROBOT)
   const restoreSession = ref(s.restoreSession ?? false)
   const session = ref<SessionConfig | null>(s.session ?? null)
   const realIp = ref(sanitizeIp(s.realIp, DEFAULT_REAL_IP))
