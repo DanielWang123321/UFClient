@@ -121,7 +121,6 @@ const tcpCells = computed(() => [
       <section class="info-section">
         <div class="sec-head">
           <span>{{ $t('real.statusTitle') }}</span>
-          <span class="ro-tag">{{ $t('settings.motion.readOnlyTag') }}</span>
         </div>
         <div class="status-grid">
           <div class="info-cell">
@@ -332,16 +331,6 @@ const tcpCells = computed(() => [
   font-size: 8.5px;
   font-weight: 600;
   color: var(--uc-ink-muted);
-}
-
-.ro-tag {
-  font-size: 9px;
-  font-weight: 600;
-  padding: 1px 5px;
-  border-radius: 2px;
-  background: var(--uc-primary-soft);
-  color: var(--uc-primary);
-  white-space: nowrap;
 }
 
 .status-grid {

@@ -119,8 +119,11 @@ describe('AppHeader, gripper kinematics & RobotPanel controls', () => {
     await useRobotStore().load('xarm6_1305', 'none')
   })
 
-  it('removes sim-state pill and yellow dot from AppHeader', () => {
+  it('renders UFClient logo, centers RealRobotControl, and omits sim-state pill in AppHeader', () => {
     const header = mount(AppHeader, { global: { plugins: [i18n] } })
+    expect(header.find('[data-test="app-logo"]').text()).toBe('UFClient')
+    expect(header.find('[data-test="header-center"] [data-test="real-trigger"]').exists()).toBe(true)
+    expect(header.find('.header-right [data-test="real-trigger"]').exists()).toBe(false)
     expect(header.find('[data-test="sim-state"]').exists()).toBe(false)
     expect(header.find('.sim-pill').exists()).toBe(false)
     expect(header.find('.sim-dot').exists()).toBe(false)

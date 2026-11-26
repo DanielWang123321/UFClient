@@ -58,6 +58,10 @@ describe('StageRealInfo overlay panel', () => {
     expect(wrapper.text()).not.toContain('XI1305060001')
     expect(wrapper.find('[data-test="real-info-sensitivity"]').text()).toBe('3')
     expect(wrapper.find('[data-test="real-info-err"]').exists()).toBe(false)
+    expect(wrapper.find('.ro-tag').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('真机只读')
+    expect(wrapper.text()).not.toContain('Controller Read-Only')
+    expect(wrapper.text()).toContain('TCP 负载')
 
     expect(wrapper.find('[data-test="real-info-mass"]').text()).toBe('1.035')
     expect(wrapper.find('[data-test="real-info-cx"]').text()).toBe('0.0')

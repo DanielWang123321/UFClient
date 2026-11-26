@@ -12,7 +12,7 @@
   },
   "app": {
     "windows": [
-      { "label": "main", "title": "UGClient", "width": 1440, "height": 900, "minWidth": 1100, "minHeight": 680 }
+      { "label": "main", "title": "UFClient", "width": 1440, "height": 900, "minWidth": 1100, "minHeight": 680 }
     ],
     "security": {
       "csp": "default-src 'self'; connect-src 'self' ws://127.0.0.1:* ipc: http://ipc.localhost; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:"

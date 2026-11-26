@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "UGClient"
+    "title": "UFClient"
   },
   "tabs": {
     "check": "Check",
@@ -180,7 +180,7 @@
     "back": "Settings",
     "searchPlaceholder": "Search for settings",
     "noMatches": "No matching settings categories.",
-    "readOnlyRealBanner": "Connected to physical robot ({ip}). Controller parameters are read-only from hardware and are never written back from UGClient.",
+    "readOnlyRealBanner": "Connected to physical robot ({ip}). Controller parameters are read-only from hardware and are never written back from UFClient.",
     "refreshFromRobot": "Read from robot",
     "refreshing": "Reading…",
     "placeholderBadge": "Planned",

@@ -47,7 +47,7 @@ const engine = useEngineStore()
     <article class="card">
       <h2>{{ $t('settings.about') }}</h2>
       <div class="kv">
-        <i>UGClient</i><b class="num">{{ pkg.version }}</b>
+        <i>{{ $t('app.title') }}</i><b class="num">{{ pkg.version }}</b>
         <i>ugclient-core</i><b class="num">{{ engine.hello?.core_version ?? '—' }}</b>
         <i>ufactory_genesis</i>
         <b class="num">{{ engine.hello ? `${engine.hello.ufactory_genesis_version} (${engine.hello.ufactory_genesis_commit})` : '—' }}</b>

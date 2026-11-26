@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "UGClient"
+    "title": "UFClient"
   },
   "tabs": {
     "check": "校核",
@@ -51,7 +51,7 @@
     "toolDefault": "工具默认"
   },
   "payload": {
-    "title": "TCP Payload",
+    "title": "TCP 负载",
     "mass": "质量 (kg)",
     "com": "质心 (mm，法兰坐标系)",
     "hint": "工具+工件总质量，与 UFACTORY Studio 定义一致；末端模型只用于显示。",

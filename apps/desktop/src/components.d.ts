@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AppHeader: typeof import('./components/AppHeader.vue')['default']
+    AppLogo: typeof import('./components/AppLogo.vue')['default']
     AppNavRail: typeof import('./components/AppNavRail.vue')['default']
     CartesianPad: typeof import('./components/CartesianPad.vue')['default']
     ElConfigProvider: typeof import('element-plus/es')['ElConfigProvider']

@@ -4,6 +4,7 @@ import { inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEngineStore } from '../stores/engine'
 import { useMotionStore } from '../stores/motion'
+import AppLogo from './AppLogo.vue'
 import RealRobotControl from './RealRobotControl.vue'
 
 const { locale } = useI18n()
@@ -15,15 +16,17 @@ const retry = inject<() => void>('engine.retry', () => {})
 <template>
   <header class="app-header">
     <div class="header-left">
-      <span class="brand-title">{{ $t('app.title') }}</span>
+      <AppLogo />
       <nav class="header-nav" aria-label="Workspace">
         <slot name="nav" />
       </nav>
     </div>
 
-    <div class="header-right">
+    <div class="header-center" data-test="header-center">
       <RealRobotControl />
+    </div>
 
+    <div class="header-right">
       <div
         class="engine-pill"
         :title="engine.error || (engine.hello ? `core ${engine.hello.core_version} / ufactory_genesis ${engine.hello.ufactory_genesis_commit} / pinocchio ${engine.hello.pinocchio_version}` : '')"
@@ -50,9 +53,9 @@ const retry = inject<() => void>('engine.retry', () => {})
   height: 48px;
   flex: none;
   padding: 0 16px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   background: var(--uc-panel-bg);
   border-bottom: 1px solid var(--uc-border);
@@ -64,12 +67,18 @@ const retry = inject<() => void>('engine.retry', () => {})
   gap: 10px;
   min-width: 0;
 }
-.brand-title {
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--uc-ink-strong);
-  white-space: nowrap;
+.header-left {
+  justify-self: start;
+}
+.header-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  min-width: 0;
+}
+.header-right {
+  justify-self: end;
 }
 .header-nav {
   display: flex;
@@ -149,6 +158,10 @@ const retry = inject<() => void>('engine.retry', () => {})
   color: #fff;
 }
 @media (max-width: 720px) {
+  .app-header {
+    display: flex;
+    justify-content: space-between;
+  }
   .engine-pill {
     display: none;
   }
