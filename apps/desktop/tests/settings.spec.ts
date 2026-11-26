@@ -142,6 +142,14 @@ describe('settings + motion', () => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({ speedPct: 101 }))
     setActivePinia(createPinia())
     expect(useSettingsStore().speedPct).toBe(50)
+
+    // per-model end effector selection persists cleanly across reloads
+    const s3 = useSettingsStore()
+    s3.setEndEffectorFor('xarm6_1305', 'robotiq_2f_85')
+    s3.save()
+    setActivePinia(createPinia())
+    expect(useSettingsStore().endEffectorFor('xarm6_1305')).toBe('robotiq_2f_85')
+    expect(useSettingsStore().endEffectorFor('uf850')).toBe('none')
   })
 
   it('a joint jog stops on the user boundary and sets a J2 notice', async () => {

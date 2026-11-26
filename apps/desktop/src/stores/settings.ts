@@ -57,6 +57,7 @@ interface Stored {
   speedPct?: number
   boundaries?: Record<string, Partial<Boundary>>
   defaultRobot?: string
+  endEffectors?: Record<string, string>
   restoreSession?: boolean
   session?: SessionConfig | null
   realIp?: string
@@ -76,6 +77,16 @@ function sanitizeIp(v: unknown, fallback = DEFAULT_REAL_IP): string {
   if (typeof v !== 'string') return fallback
   const trimmed = v.trim()
   return trimmed && !/\s/.test(trimmed) ? trimmed : fallback
+}
+
+function sanitizeEndEffectors(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const key = k.trim()
+    if (key && typeof v === 'string' && v.trim()) out[key] = v.trim()
+  }
+  return out
 }
 
 function sanitizeSensitivity(v: unknown, fallback = 3): number {
@@ -169,6 +180,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const speedPct = ref(sanitizeSpeedPct(s.speedPct, MOTION.defaultSpeedPct))
   const boundaries = ref<Record<string, Partial<Boundary>>>(s.boundaries ?? {})
   const defaultRobot = ref(s.defaultRobot ?? DEFAULT_ROBOT)
+  const endEffectors = ref<Record<string, string>>(sanitizeEndEffectors(s.endEffectors))
   const restoreSession = ref(s.restoreSession ?? false)
   const session = ref<SessionConfig | null>(s.session ?? null)
   const realIp = ref(sanitizeIp(s.realIp, DEFAULT_REAL_IP))
@@ -188,6 +200,7 @@ export const useSettingsStore = defineStore('settings', () => {
       speedPct: speedPct.value,
       boundaries: boundaries.value,
       defaultRobot: defaultRobot.value,
+      endEffectors: endEffectors.value,
       restoreSession: restoreSession.value,
       session: session.value,
       realIp: realIp.value,
@@ -212,6 +225,7 @@ export const useSettingsStore = defineStore('settings', () => {
       speedPct,
       boundaries,
       defaultRobot,
+      endEffectors,
       restoreSession,
       session,
       realIp,
@@ -376,6 +390,14 @@ export const useSettingsStore = defineStore('settings', () => {
     boundaries.value = next
   }
 
+  function endEffectorFor(robotKey: string): string {
+    return endEffectors.value[robotKey] ?? 'none'
+  }
+  function setEndEffectorFor(robotKey: string, ee: string) {
+    if (!robotKey) return
+    endEffectors.value = { ...endEffectors.value, [robotKey]: ee || 'none' }
+  }
+
   return {
     stepMm,
     stepDeg,
@@ -390,6 +412,7 @@ export const useSettingsStore = defineStore('settings', () => {
     speedPct,
     boundaries,
     defaultRobot,
+    endEffectors,
     restoreSession,
     session,
     realIp,
@@ -414,6 +437,8 @@ export const useSettingsStore = defineStore('settings', () => {
     boundaryFor,
     setBoundary,
     resetBoundary,
+    endEffectorFor,
+    setEndEffectorFor,
     save,
   }
 })

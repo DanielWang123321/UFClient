@@ -6,6 +6,7 @@ import { useEngineStore } from '../stores/engine'
 import { useRealStore } from '../stores/real'
 import { useMotionStore } from '../stores/motion'
 import { robotDisplayName } from '../stores/robot'
+import { formatFirmwareVersion } from '../lib/units'
 
 const { t } = useI18n()
 const engine = useEngineStore()
@@ -114,7 +115,7 @@ async function onClearError() {
             <span>{{ $t('real.model') }}</span>
             <b>{{ robotDisplayName(real.robotKey) }} ({{ real.dof }} DOF)</b>
             <span>{{ $t('real.firmware') }}</span>
-            <b class="num">{{ real.version || '—' }}</b>
+            <b class="num" data-test="real-firmware-val">{{ formatFirmwareVersion(real.version) }}</b>
             <span>{{ $t('real.stateMode') }}</span>
             <b class="num">state={{ real.state }} / mode={{ real.mode }}</b>
             <template v-if="real.errorCode !== 0 || real.warnCode !== 0">

@@ -40,7 +40,9 @@ const tuningRows = computed(() => {
 async function onEe(ee: string) {
   motion.stop()
   motion.clearNotice()
-  await robot.select(robot.key, ee)
+  if (await robot.select(robot.key, ee)) {
+    settings.setEndEffectorFor(robot.key, robot.endEffector)
+  }
 }
 
 async function commitMove(posVal?: number) {

@@ -3,6 +3,7 @@
 import { useEngineStore } from '../../stores/engine'
 import { useRealStore } from '../../stores/real'
 import { robotDisplayName, useRobotStore } from '../../stores/robot'
+import { formatFirmwareVersion } from '../../lib/units'
 
 const engine = useEngineStore()
 const real = useRealStore()
@@ -25,7 +26,7 @@ const robot = useRobotStore()
       <div v-if="real.connected" class="kv">
         <i>{{ $t('settings.device.ip') }}</i><b class="num">{{ real.ip }}</b>
         <i>{{ $t('real.model') }}</i><b>{{ robotDisplayName(real.robotKey) }} ({{ real.dof }} DOF)</b>
-        <i>{{ $t('real.firmware') }}</i><b class="num">{{ real.version || '—' }}</b>
+        <i>{{ $t('real.firmware') }}</i><b class="num">{{ formatFirmwareVersion(real.version) }}</b>
         <i>{{ $t('settings.device.sn') }}</i><b class="num">{{ real.sn || '—' }}</b>
         <i>{{ $t('real.motorEnable') }}</i><b>{{ real.enabled ? $t('real.enabled') : $t('real.disabled') }}</b>
         <i>{{ $t('real.stateMode') }}</i><b class="num">state={{ real.state }} / mode={{ real.mode }}</b>

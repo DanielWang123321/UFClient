@@ -32,7 +32,7 @@ export function formatFirmwareVersion(raw: string | undefined | null): string {
     .filter(Boolean)
   if (parts.length === 0) return '—'
   const tail = parts[parts.length - 1]
-  const match = /v?(\d+\.\d+(?:\.\d+)*)/i.exec(tail)
+  const match = /v?(\d+\.\d+(?:\.\d+)?)/i.exec(tail)
   if (match) return `v${match[1]}`
   return parts.length > 1 ? '—' : tail
 }

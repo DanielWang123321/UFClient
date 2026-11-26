@@ -47,7 +47,11 @@ async function start() {
       await robot.applyPayload(last.payload)
       if (last.q.length === robot.info?.dof) await robot.setQ(last.q)
     } else {
-      await robot.load(known(settings.defaultRobot) ? settings.defaultRobot : DEFAULT_ROBOT)
+      const targetKey = known(settings.defaultRobot) ? settings.defaultRobot : DEFAULT_ROBOT
+      const targetSpec = robot.robots.find((r) => r.key === targetKey)
+      const savedEe = settings.endEffectorFor(targetKey)
+      const targetEe = targetSpec?.end_effectors.includes(savedEe) ? savedEe : 'none'
+      await robot.load(targetKey, targetEe)
     }
   }
 }

@@ -104,8 +104,17 @@ export const useRealStore = defineStore('real', () => {
       const snap = await engine.call<RealStatus>('real.connect', { ip: cleanIp })
       settings.setRealIp(cleanIp)
       ip.value = cleanIp
-      if (snap.robot_key && snap.robot_key !== robot.key) {
-        await robot.load(snap.robot_key, 'none')
+      if (snap.robot_key) {
+        const targetSpec = robot.robots.find((r) => r.key === snap.robot_key)
+        const supports = (ee: string) => ee === 'none' || !targetSpec || targetSpec.end_effectors.includes(ee)
+        const preferred =
+          robot.endEffector !== 'none' && supports(robot.endEffector)
+            ? robot.endEffector
+            : settings.endEffectorFor(snap.robot_key)
+        const targetEe = supports(preferred) ? preferred : 'none'
+        if (snap.robot_key !== robot.key || targetEe !== robot.endEffector) {
+          await robot.load(snap.robot_key, targetEe)
+        }
       }
       if (snap.tcp_offset?.length === 6) {
         await robot.applyTcp(snap.tcp_offset)

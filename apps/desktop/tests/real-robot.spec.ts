@@ -15,7 +15,7 @@ import { FakeWs, HELLO } from './fakeEngine'
 import { i18n } from '../src/i18n'
 import type { RealStatus } from '../src/rpc/types'
 
-function makeLoad(key: string) {
+function makeLoad(key: string, ee = 'none') {
   return {
     key,
     robot_name: key,
@@ -28,7 +28,7 @@ function makeLoad(key: string) {
     end_effectors: ['none', 'gripper_g2', 'bio_gripper_g2', 'vacuum_gripper'],
     limits_deg: [[-360, 360], [-118, 120], [-225, 11], [-360, 360], [-97, 180], [-360, 360]] as [number, number][],
     default_q_deg: [0, 0, 0, 0, 0, 0],
-    end_effector: 'none',
+    end_effector: ee,
     default_tcp_offset: [0, 0, 0, 0, 0, 0],
     default_tcp_source: 'none',
   }
@@ -75,7 +75,8 @@ describe('real xArm6 store & dual-channel motion', () => {
 
     const handlers = {
       'system.hello': () => HELLO,
-      'robot.load': (p: Record<string, unknown>) => makeLoad(String(p.robot ?? 'uf850')),
+      'robot.load': (p: Record<string, unknown>) =>
+        makeLoad(String(p.robot ?? 'uf850'), String(p.end_effector ?? 'none')),
       'tcp.set': () => ({ ok: true }),
       'payload.set': () => ({ ok: true }),
       'kin.fk': () => ({ tcp_pose: [300, 0, 200, 180, 0, 0], flange_pose: [300, 0, 200, 180, 0, 0] }),
@@ -240,6 +241,48 @@ describe('real xArm6 store & dual-channel motion', () => {
     await flushPromises()
     expect(real.enabled).toBe(true)
     expect(document.body.querySelector('[data-test="real-enable"]')).toBeNull()
+
+    ctl.unmount()
+  })
+
+  it('preserves compatible end effector across real.connect(), restores saved per-model choice, and formats vx.x.x firmware', async () => {
+    const robot = useRobotStore()
+    const real = useRealStore()
+    const settings = useSettingsStore()
+
+    // 1. Compatible end effector currently selected on uf850 stays selected after connecting to xArm 6
+    await robot.select('uf850', 'gripper_g2')
+    expect(robot.endEffector).toBe('gripper_g2')
+
+    expect(await real.connect('192.168.1.60')).toBe(true)
+    await flushPromises()
+    expect(robot.key).toBe('xarm6_1305')
+    expect(robot.endEffector).toBe('gripper_g2')
+    expect(robot.tcpOffset).toEqual([0, 0, 173.5, 0, 0, 0])
+    expect(robot.payload).toEqual({ mass_kg: 0.8, com_mm: [0, 0, 40] })
+
+    // Dialog shows strictly vx.x.x without SN prefixes
+    ws.push('real.state', makeRealSnap({ version: '6,6,XI1305,AC1310,v2.8.2.1' }))
+    const ctl = mount(RealRobotControl, { attachTo: document.body, global: { plugins: [i18n] } })
+    await ctl.find('[data-test="real-trigger"]').trigger('click')
+    await flushPromises()
+    const fw = document.body.querySelector('[data-test="real-firmware-val"]')?.textContent?.trim()
+    expect(fw).toBe('v2.8.2')
+    const dialogText = document.body.querySelector('[data-test="real-dialog"]')?.textContent ?? ''
+    expect(dialogText).not.toContain('XI1305')
+    expect(dialogText).not.toContain('AC1310')
+
+    // 2. When disconnecting and starting at 'none', real.connect() restores saved endEffectorFor('xarm6_1305')
+    await real.disconnect()
+    settings.setEndEffectorFor('xarm6_1305', 'bio_gripper_g2')
+    await robot.load('xarm6_1305', 'none')
+    expect(robot.endEffector).toBe('none')
+
+    expect(await real.connect('192.168.1.60')).toBe(true)
+    await flushPromises()
+    expect(robot.endEffector).toBe('bio_gripper_g2')
+    expect(robot.tcpOffset).toEqual([0, 0, 173.5, 0, 0, 0])
+    expect(ws.sent.some((c) => c.method.startsWith('real.set_'))).toBe(false)
 
     ctl.unmount()
   })

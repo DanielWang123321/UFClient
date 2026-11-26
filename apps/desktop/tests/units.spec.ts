@@ -11,6 +11,7 @@ describe('units', () => {
   })
   it('extracts firmware version without arm/control-box SN prefixes', () => {
     expect(formatFirmwareVersion('6,6,XI1305,AC1310,v2.8.2')).toBe('v2.8.2')
+    expect(formatFirmwareVersion('6,6,XI1305,AC1310,v2.8.2.1')).toBe('v2.8.2')
     expect(formatFirmwareVersion('6,6,XI1305,AC1310,2.8.2-20250901')).toBe('v2.8.2')
     expect(formatFirmwareVersion('2.8.1')).toBe('v2.8.1')
     expect(formatFirmwareVersion('6,6,XI1305,AC1310')).toBe('—')
