@@ -467,10 +467,15 @@
       }
     },
     "real.clear_error": {
-      "description": "Explicit user-triggered clean_warn + clean_error on the physical controller.",
+      "description": "Explicit user-triggered clean_warn + clean_error with optional motor re-enable and Ready state recovery.",
       "params": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "enable": {
+            "type": "boolean",
+            "default": true
+          }
+        },
         "required": []
       }
     },

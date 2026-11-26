@@ -6,12 +6,13 @@ import { useRobotStore } from '../stores/robot'
 import { useMotionStore } from '../stores/motion'
 import { useRealStore } from '../stores/real'
 import { usePressHold } from '../lib/usePressHold'
+import { getControllerErrorInfo } from '../lib/realErrors'
 import CartesianPad from './CartesianPad.vue'
 import JointControlList from './JointControlList.vue'
 
 type ControlTab = 'cartesian' | 'joint'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const robot = useRobotStore()
 const motion = useMotionStore()
 const real = useRealStore()
@@ -22,11 +23,18 @@ const isCollapsed = ref(false)
 const busy = computed(() => !robot.sessionId || (real.connected && !real.canMove))
 const realGuardHint = computed(() => {
   if (!real.connected) return ''
-  if (real.errorCode !== 0) return t('real.errorHint', { code: real.errorCode })
+  if (real.errorCode !== 0) {
+    const info = getControllerErrorInfo(real.errorCode, locale.value)
+    return `${info.codeLabel} · ${info.title}`
+  }
   if (!real.enabled) return t('real.needEnableHint')
   return ''
 })
 const collapseLabel = computed(() => t(isCollapsed.value ? 'motion.expandPanel' : 'motion.collapsePanel'))
+
+async function onClearError() {
+  if (await real.clearError()) motion.clearNotice()
+}
 
 function setTab(tab: ControlTab) {
   if (activeTab.value === tab) return
@@ -119,7 +127,17 @@ onBeforeUnmount(() => {
         role="status"
         data-test="real-guard-hint"
       >
-        {{ realGuardHint }}
+        <span class="guard-text">{{ realGuardHint }}</span>
+        <button
+          v-if="real.errorCode !== 0"
+          type="button"
+          class="guard-clear-btn"
+          :disabled="real.busy"
+          data-test="motion-clear-error"
+          @click="onClearError"
+        >
+          {{ real.busy ? $t('real.clearingError') : $t('real.clearError') }}
+        </button>
       </div>
 
       <div id="motion-speed" class="jog-speed-box">
@@ -233,6 +251,10 @@ onBeforeUnmount(() => {
 .real-guard-banner {
   margin: 10px 18px 0;
   padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   border: 1px solid #f59e0b;
   border-left: 3px solid #d97706;
   border-radius: 3px;
@@ -247,6 +269,32 @@ onBeforeUnmount(() => {
   border-left-color: var(--uc-danger);
   background: #fef2f2;
   color: #991b1b;
+}
+.guard-text {
+  min-width: 0;
+}
+.guard-clear-btn {
+  flex: none;
+  padding: 3px 8px;
+  border: 1px solid rgba(220, 38, 38, 0.45);
+  border-radius: 3px;
+  background: #fff;
+  color: #b91c1c;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+.guard-clear-btn:hover:not(:disabled) {
+  background: var(--uc-danger);
+  border-color: var(--uc-danger);
+  color: #fff;
+}
+.guard-clear-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
 }
 .jog-speed-box {
   margin: 12px 18px 0;

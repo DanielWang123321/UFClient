@@ -65,12 +65,14 @@ describe('real xArm6 store & dual-channel motion', () => {
   let ws: FakeWs
   let snap: RealStatus
   let rejectBoundary = false
+  let persistFault = false
 
   beforeEach(async () => {
     localStorage.clear()
     i18n.global.locale.value = 'zh'
     setActivePinia(createPinia())
     rejectBoundary = false
+    persistFault = false
     snap = makeRealSnap()
 
     const handlers = {
@@ -92,6 +94,21 @@ describe('real xArm6 store & dual-channel motion', () => {
       },
       'real.enable': (p: Record<string, unknown>) => {
         snap = { ...snap, enabled: Boolean(p.enable) }
+        return snap
+      },
+      'real.clear_error': (p: Record<string, unknown>) => {
+        if (persistFault) {
+          snap = { ...snap, error_code: 1, warn_code: 0, enabled: false, state: 4 }
+          return snap
+        }
+        const shouldEnable = p.enable !== false
+        snap = {
+          ...snap,
+          error_code: 0,
+          warn_code: 0,
+          enabled: shouldEnable ? true : snap.enabled,
+          state: shouldEnable ? 2 : snap.state,
+        }
         return snap
       },
       'real.stop': () => {
@@ -226,6 +243,7 @@ describe('real xArm6 store & dual-channel motion', () => {
   it('omits motorEnable status row and Disable button from RealRobotControl dialog', async () => {
     const real = useRealStore()
     await real.connect('192.168.1.60')
+    await flushPromises()
     const ctl = mount(RealRobotControl, { attachTo: document.body, global: { plugins: [i18n] } })
 
     await ctl.find('[data-test="real-trigger"]').trigger('click')
@@ -285,5 +303,62 @@ describe('real xArm6 store & dual-channel motion', () => {
     expect(ws.sent.some((c) => c.method.startsWith('real.set_'))).toBe(false)
 
     ctl.unmount()
+  })
+
+  it('displays SDK C19 fault card with Clear error recovery and persistent fault feedback', async () => {
+    const real = useRealStore()
+    await real.connect('192.168.1.60')
+    await flushPromises()
+
+    const panel = mount(MotionPanel, { attachTo: document.body, global: { plugins: [i18n] } })
+    const notices = mount(StageNotices, { attachTo: document.body, global: { plugins: [i18n] } })
+
+    real.gripperError = 'gripper fault'
+    ws.push('real.state', makeRealSnap({ enabled: false, error_code: 19, warn_code: 2 }))
+    await flushPromises()
+
+    const card = notices.find('[data-test="real-fault-notice"]')
+    expect(card.exists()).toBe(true)
+    expect(card.find('[data-test="real-fault-code"]').text()).toBe('C19')
+    expect(card.find('[data-test="real-fault-title"]').text()).toBe('末端工具通信失败')
+    expect(card.find('[data-test="real-fault-desc"]').text()).toContain('末端工具')
+    expect(card.find('[data-test="real-fault-warn"]').text()).toContain('W2')
+    expect(panel.find('[data-test="motion-clear-error"]').exists()).toBe(true)
+
+    // Switch locale to English -> SDK error title & description update seamlessly
+    i18n.global.locale.value = 'en'
+    await flushPromises()
+    expect(card.find('[data-test="real-fault-title"]').text()).toBe('End Effector Communication Error')
+
+    // Click Clear error inside the 3D fault card -> recovers, enables, clears gripperError, unlocks MotionPanel
+    await card.find('[data-test="stage-clear-error"]').trigger('click')
+    await flushPromises()
+    expect(ws.sent.some((c) => c.method === 'real.clear_error')).toBe(true)
+    expect(real.errorCode).toBe(0)
+    expect(real.enabled).toBe(true)
+    expect(real.gripperError).toBe('')
+    expect(notices.find('[data-test="real-fault-notice"]').exists()).toBe(false)
+    expect(panel.find('[data-test="x+"]').attributes('disabled')).toBeUndefined()
+
+    // Persistent fault keeps card open and surfaces inline feedback
+    persistFault = true
+    ws.push('real.state', makeRealSnap({ enabled: false, error_code: 1, state: 4 }))
+    await flushPromises()
+    await notices.find('[data-test="stage-clear-error"]').trigger('click')
+    await flushPromises()
+    expect(notices.find('[data-test="real-fault-notice"]').exists()).toBe(true)
+    expect(notices.find('[data-test="real-fault-persist"]').exists()).toBe(true)
+
+    // Clicking Clear error inside MotionPanel also dispatches real.clear_error and recovers once hardware clears
+    persistFault = false
+    const clearCallsBefore = ws.sent.filter((c) => c.method === 'real.clear_error').length
+    await panel.find('[data-test="motion-clear-error"]').trigger('click')
+    await flushPromises()
+    expect(ws.sent.filter((c) => c.method === 'real.clear_error').length).toBe(clearCallsBefore + 1)
+    expect(real.errorCode).toBe(0)
+    expect(notices.find('[data-test="real-fault-notice"]').exists()).toBe(false)
+
+    notices.unmount()
+    panel.unmount()
   })
 })

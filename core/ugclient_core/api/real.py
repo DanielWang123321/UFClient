@@ -57,8 +57,9 @@ def real_enable(params: dict[str, Any], store: SessionStore) -> dict[str, Any]:
     return store.real.enable(params["enable"])
 
 
-def real_clear_error(_: dict[str, Any], store: SessionStore) -> dict[str, Any]:
-    return store.real.clear_error()
+def real_clear_error(params: dict[str, Any], store: SessionStore) -> dict[str, Any]:
+    enable = _opt_bool(params, "enable", True)
+    return store.real.clear_error(enable=enable)
 
 
 def real_stop(params: dict[str, Any], store: SessionStore) -> dict[str, Any]:

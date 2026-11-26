@@ -173,7 +173,10 @@ export const useRealStore = defineStore('real', () => {
     try {
       const snap = await engine.call<RealStatus>('real.clear_error')
       applySnapshot(snap)
-      return true
+      if (snap.error_code === 0) {
+        gripperError.value = ''
+      }
+      return snap.error_code === 0
     } catch (e) {
       lastError.value = e instanceof Error ? e.message : String(e)
       return false

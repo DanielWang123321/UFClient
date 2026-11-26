@@ -43,6 +43,7 @@ class FakeXArm:
         mount_direction: list[float] | None = None,
         initial_point: list[float] | None = None,
         studio_error: bool = False,
+        persistent_error: bool = False,
     ) -> None:
         self.ip = ip
         self.axis = axis
@@ -71,6 +72,7 @@ class FakeXArm:
             list(initial_point) if initial_point is not None else [-0.4, -31.7, -25.7, 0.2, 57.4, -0.2, 0.0]
         )
         self._studio_error = studio_error
+        self._persistent_error = persistent_error
         self.robotiq_status: dict[str, int] = {"gOBJ": 3, "gSTA": 3, "gGTO": 1, "gACT": 1, "gPO": 42}
         self._gripper_g2_pos = 55
         self._bio_g2_pos = 110
@@ -109,13 +111,18 @@ class FakeXArm:
 
     def clean_error(self) -> int:
         self.calls.append(("clean_error", (), {}))
-        self.error_code = 0
+        if not self._persistent_error:
+            self.error_code = 0
         return 0
 
     def clean_warn(self) -> int:
         self.calls.append(("clean_warn", (), {}))
         self.warn_code = 0
         return 0
+
+    def get_err_warn_code(self, show: bool = False, lang: str = "en") -> tuple[int, list[int]]:
+        self.calls.append(("get_err_warn_code", (), {}))
+        return 0, [self.error_code, self.warn_code]
 
     def set_servo_angle(self, **kwargs) -> int:
         self.calls.append(("set_servo_angle", (), kwargs))
@@ -305,14 +312,43 @@ def test_never_auto_clears_error_and_requires_manual_clear():
     assert r["error"]["code"] == errors.REAL_CONTROLLER_ERROR
     assert not any(c[0] == "clean_error" for c in arm.calls)
 
-    # Explicit user clear_error clears warn+error but keeps motors disabled until explicit enable
-    cleared = h.call("real.clear_error")
-    assert cleared["error_code"] == 0 and cleared["warn_code"] == 0
-    assert cleared["enabled"] is False
-    assert any(c[0] == "clean_error" for c in arm.calls)
+    # clear_error(enable=False) clears warn+error & queries error state while leaving motors disabled
+    cleared_only = h.call("real.clear_error", enable=False)
+    assert cleared_only["error_code"] == 0 and cleared_only["warn_code"] == 0
+    assert cleared_only["enabled"] is False
+    assert ("clean_warn", (), {}) in arm.calls
+    assert ("clean_error", (), {}) in arm.calls
+    assert ("get_err_warn_code", (), {}) in arm.calls
+    assert not any(c[0] == "motion_enable" for c in arm.calls)
 
-    enabled = h.call("real.enable", enable=True)
-    assert enabled["enabled"] is True
+    # Re-trigger C19 fault; default clear_error() clears fault and runs SDK motion_enable + set_state(0)
+    arm.calls.clear()
+    arm.error_code = 19
+    arm.warn_code = 2
+    arm.state = STATE_STOP
+    arm.motor_enable_states = [0] * 8
+    arm.motor_brake_states = [0] * 8
+
+    recovered = h.call("real.clear_error")
+    assert recovered["error_code"] == 0 and recovered["warn_code"] == 0
+    assert recovered["enabled"] is True
+    assert recovered["state"] == STATE_READY
+    call_names = [c[0] for c in arm.calls]
+    assert "clean_warn" in call_names
+    assert "clean_error" in call_names
+    assert "get_err_warn_code" in call_names
+    assert ("motion_enable", (True,), {}) in arm.calls
+    assert ("set_state", (0,), {}) in arm.calls
+
+    # Latched fault (e.g. physical E-stop still pressed) does NOT attempt motor enable
+    latched_arm = FakeXArm("192.168.1.60", error_code=1, persistent_error=True)
+    h_latched = RpcHarness(lambda _ip: latched_arm)
+    h_latched.call("real.connect", ip="192.168.1.60")
+    after_latched = h_latched.call("real.clear_error")
+    assert after_latched["error_code"] == 1
+    assert after_latched["enabled"] is False
+    assert not any(c[0] == "motion_enable" for c in latched_arm.calls)
+    assert not any(c[0] == "set_state" and c[1] == (0,) for c in latched_arm.calls)
 
 
 def test_step_joint_tcp_and_safety_boundary():

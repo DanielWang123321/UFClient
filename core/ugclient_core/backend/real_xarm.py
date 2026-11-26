@@ -625,6 +625,36 @@ class RealXArmController:
                     break
                 time.sleep(0.01)
 
+    def _enable_motion_ready(self, arm: Any, *, after_clear: bool = False) -> bool:
+        """Enable motors, switch to Mode 0, and enter Ready state."""
+        hw_en = self._read_hw_enabled(arm)
+        ops: list[tuple[str, Callable[[], Any]]] = []
+        if hw_en is not True:
+            ops.append(("motion_enable", lambda: arm.motion_enable(enable=True)))
+        if int(getattr(arm, "mode", -1)) != MODE_POSITION:
+            ops.append(("set_mode(0)", lambda: arm.set_mode(MODE_POSITION)))
+        if int(getattr(arm, "state", STATE_STOP)) not in (STATE_MOVING, STATE_READY):
+            ops.append(("set_state(0)", lambda: arm.set_state(STATE_MOTION)))
+        for label, op in ops:
+            code = int(op())
+            if code != 0:
+                with contextlib.suppress(Exception):
+                    arm.set_state(STATE_STOP)
+                self._enabled = False
+                if after_clear:
+                    self._enable_grace_until = 0.0
+                    get_err = getattr(arm, "get_err_warn_code", None)
+                    if callable(get_err):
+                        with contextlib.suppress(Exception):
+                            get_err()
+                    if int(getattr(arm, "error_code", 0) or 0) != 0:
+                        return False
+                    raise RpcError(REAL_MOTION_REJECTED, f"{label} failed after clean_error with SDK code {code}")
+                raise RpcError(REAL_MOTION_REJECTED, f"{label} failed with SDK code {code}")
+        self._enabled = True
+        self._enable_grace_until = time.monotonic() + 0.6
+        return True
+
     # -- Enable / Clear error / Stop -----------------------------------------
     def enable(self, enable: bool) -> dict[str, Any]:
         with self._cmd_lock:
@@ -642,27 +672,11 @@ class RealXArmController:
                 return self.snapshot()
 
             self._check_error_free(arm)
-            hw_en = self._read_hw_enabled(arm)
-            ops: list[tuple[str, Callable[[], Any]]] = []
-            if hw_en is not True:
-                ops.append(("motion_enable", lambda: arm.motion_enable(enable=True)))
-            if int(getattr(arm, "mode", -1)) != MODE_POSITION:
-                ops.append(("set_mode(0)", lambda: arm.set_mode(MODE_POSITION)))
-            if int(getattr(arm, "state", STATE_STOP)) not in (STATE_MOVING, STATE_READY):
-                ops.append(("set_state(0)", lambda: arm.set_state(STATE_MOTION)))
-            for label, op in ops:
-                code = int(op())
-                if code != 0:
-                    with contextlib.suppress(Exception):
-                        arm.set_state(STATE_STOP)
-                    self._enabled = False
-                    raise RpcError(REAL_MOTION_REJECTED, f"{label} failed with SDK code {code}")
-            self._enabled = True
-            self._enable_grace_until = time.monotonic() + 0.6
+            self._enable_motion_ready(arm)
             return self.snapshot()
 
-    def clear_error(self) -> dict[str, Any]:
-        """Explicit user-triggered fault clear. Never called automatically."""
+    def clear_error(self, enable: bool = True) -> dict[str, Any]:
+        """Explicit user-triggered fault clear following SDK recovery flow. Never called automatically."""
         with self._cmd_lock:
             arm = self._require_arm()
             self._cancel_watchdog()
@@ -671,9 +685,20 @@ class RealXArmController:
             code = int(arm.clean_error())
             if code != 0:
                 raise RpcError(REAL_CONTROLLER_ERROR, f"clean_error failed with SDK code {code}")
-            hw_en = self._read_hw_enabled(arm)
-            self._enabled = bool(hw_en is True)
-            self._enable_grace_until = 0.0
+            get_err = getattr(arm, "get_err_warn_code", None)
+            if callable(get_err):
+                with contextlib.suppress(Exception):
+                    get_err()
+            err_after = int(getattr(arm, "error_code", 0) or 0)
+            if err_after != 0:
+                self._enabled = False
+                self._enable_grace_until = 0.0
+                return self.snapshot()
+            if enable:
+                self._enable_motion_ready(arm, after_clear=True)
+            else:
+                self._enabled = bool(self._read_hw_enabled(arm) is True)
+                self._enable_grace_until = 0.0
             return self.snapshot()
 
     def stop(self, emergency: bool = False, decel: bool = False) -> dict[str, Any]:

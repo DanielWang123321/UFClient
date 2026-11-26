@@ -49,9 +49,6 @@ async function onEnable() {
 }
 
 async function onClearError() {
-  if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-    if (!window.confirm(t('real.clearErrorConfirm'))) return
-  }
   await real.clearError()
 }
 </script>
@@ -150,7 +147,7 @@ async function onClearError() {
               data-test="real-clear-error"
               @click="onClearError"
             >
-              {{ $t('real.clearError') }}
+              {{ real.busy ? $t('real.clearingError') : $t('real.clearError') }}
             </button>
           </div>
         </template>
